@@ -62,7 +62,8 @@ lint: ## check style with flake8
 	flake8 snowline tests
 
 test: ## run tests quickly with the default Python
-	pytest
+	#pytest
+	bash runtests.sh
 
 test-all: ## run tests on every Python version with tox
 	tox
