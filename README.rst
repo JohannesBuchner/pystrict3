@@ -71,6 +71,15 @@ Run with::
 Running with multiple filenames has the benefit that all
 function signatures are first recorded and verified across all files.
 
+Example stderr outputs::
+
+    tests/expect-fail/recipe-412717.py:32: ERROR: Variable reuse: "Test"
+    tests/expect-fail/recipe-425043.py:13: ERROR: Function "pow" (3..3 arguments) called with 2 arguments
+    tests/expect-fail/recipe-578135.py:184: ERROR: Function "encode" (3..3 arguments) called with 2 arguments
+
+Return code is 1 if a error was detected, or 0 otherwise.
+For non-verbose, pipe stdout to /dev/null.
+
 Future
 --------
 

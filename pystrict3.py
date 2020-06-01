@@ -198,11 +198,7 @@ class CallLister(ast.NodeVisitor):
             nargs += 1
         
         if max_args >= 0 and nargs > max_args or nargs < min_args:
-            #start = max(0, node.lineno - 3)
-            #end = node.lineno + 2
             sys.stderr.write('%s:%d: ERROR: Function "%s" (%d..%d arguments) called with %d arguments\n' % (filename, node.lineno, funcname, min_args, max_args, nargs))
-            #sys.stderr.write(''.join(open(sys.argv[1]).readlines()[start:end]))
-            #sys.stderr.write("\n")
             sys.exit(1)
         else:
             print("call(%s with %d args): OK" % (funcname, nargs))
@@ -321,17 +317,8 @@ for filename, a in asts:
                     elif id in known or id in add_here:
                         pass
                     else:
-                        #start = max(0, node.lineno - 2)
-                        #end = node.lineno + 3
                         sys.stderr.write('%s:%d: ERROR: Variable unknown: "%s"\n' % (filename, node.lineno, id))
-                        sys.stderr.write('{}:{}: ERROR: Variable unknown: "{}"\n'.format(filename, node.lineno, id))
-                        sys.stderr.write('ERROR: Variable unknown: \n'.format())
-                        #sys.stderr.write('ERROR: Variable unknown: "%s" near line %d of %s\n' % (id, node.lineno, filename))
-                        #sys.stderr.write(''.join(open(filename).readlines()[start:end]))
-                        #sys.stderr.write("Known variables here: %s\n" % (known - set(preknown)))
-                        #sys.stderr.write("\n")
                         sys.exit(1)
-                        #assert id in known or add_here, (el.lineno, id, known - set(builtins.__dict__), el)
             
             for id in forget_here:
                 if id in known:
