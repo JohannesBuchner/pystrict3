@@ -1,7 +1,10 @@
 pystrict3
 ----------
 
-pystrict3 is a static code analyser, which provides complementary checks to pyflakes and pep8.
+pystrict3 is a static code analyser.
+
+Rules
+--------------
 
 pystrict3 enforces that variables are only assigned once, and that python keywords are not overwritten. 
 This avoids shadowing and change of semantics of variables, and leads to cleaner, more idiomatic code::
@@ -53,10 +56,20 @@ Contributing
 Contributions are welcome.
 
 pystrict3 is currently relatively dumb and may not catch all corner cases.
+It tries hard to avoid unintentional false positives.
+
 However, it is tested on activestate recipes, and 1131/1256 of all valid python3
 programs already are pystrict3 compliant, indicating that its guidelines
 are already adhered to. 
 
+Usage
+--------
+Run with::
+
+    $ pystrict3 <filenames>
+
+Running with multiple filenames has the benefit that all
+function signatures are first recorded and verified across all files.
 
 Future
 --------
