@@ -131,7 +131,7 @@ class StrFormatLister(ast.NodeVisitor):
             keys_needed = {field_name.split('.')[0] for field_name in elements if field_name != ''}
             keys_supplied = {arg.arg for arg in node.keywords}
             
-            if keys_supplied != keys_needed:
+            if len(keys_needed - keys_supplied) > 0:
                 sys.stderr.write('{}:{:d}: ERROR: String interpolation "{}" is missing keys {}\n'.format(filename, node.lineno, formatter, keys_needed - keys_supplied))
                 sys.exit(1)
 

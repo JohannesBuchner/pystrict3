@@ -35,9 +35,9 @@ when call signatures change to include an additional argument::
 
     def bar(a, b=1):
         return a*b
-    foo(1)  ## OK
-    foo(1, 2)  ## OK
-    foo(1, 2, 3)  ## error: wrong number of arguments
+    bar(1)  ## OK
+    bar(1, 2)  ## OK
+    bar(1, 2, 3)  ## error: wrong number of arguments
 
 pystrict3 checks that printf-style string interpolation is used with the 
 right number of arguments::
