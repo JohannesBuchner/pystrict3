@@ -51,5 +51,5 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/JohannesBuchner/pystrict3',
-    version='0.1.0',
+    version='0.1.1',
 )
