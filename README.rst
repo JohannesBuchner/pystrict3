@@ -1,7 +1,11 @@
 pystrict3
 ----------
 
-pystrict3 is a static code analyser.
+pystrict3 checks Python3 code for simple mistakes, such as
+
+* calling functions with the wrong number of arguments,
+* interpolating strings with the wrong number of arguments,
+* shadowing and re-using variables
 
 Rules
 --------------
