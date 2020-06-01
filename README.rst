@@ -78,11 +78,10 @@ Programs where variables do not change are easier to optimize and parallelise.
 Perhaps in the future, python compilers can take advantage of this.
 
 
-
 Licence
 ---------
 
-MIT and BSD 2-clause. Take your pick.
+BSD 2-clause.
 
 
 Tipps
