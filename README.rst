@@ -94,7 +94,7 @@ cleaner code.
 
 How to write to pystrict3 compliance:
 
- * Use del to actively remove unused variables::
+* Use del to actively remove unused variables::
      
      answer = input("Do you want to play? (yes/no)")
      if answer == "no":
@@ -103,7 +103,7 @@ How to write to pystrict3 compliance:
      answer = int(input("first value"))
      print(answer * 10):
 
- * Name parts of computation explicitly::
+* Name parts of computation explicitly::
  
      filename = 'foo.pdf'
      if condition:
@@ -127,7 +127,7 @@ How to write to pystrict3 compliance:
      components.append(extension)
      path = ''.join(components)
 
- * Refactor into functions::
+* Refactor into functions::
 
     # original: "changes" is being reused.
     USE_JYTHON = False
@@ -167,5 +167,5 @@ How to write to pystrict3 compliance:
             if not changes:
                 return objs
 
- * Instead of assigning to __doc__, move the docstring to the start of the file.
+* Instead of assigning to __doc__, move the docstring to the start of the file.
 
