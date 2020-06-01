@@ -66,7 +66,7 @@ Usage
 --------
 Run with::
 
-    $ pystrict3 <filenames>
+    $ python3 pystrict3.py <filenames>
 
 Running with multiple filenames has the benefit that all
 function signatures are first recorded and verified across all files.
