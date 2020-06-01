@@ -8,23 +8,23 @@ import string
 import pyparsing as pp
 
 # from https://docs.python.org/3/library/stdtypes.html?highlight=string%20interpolation#printf-style-string-formatting
-PCT,LPAREN,RPAREN,DOT = map(pp.Literal, '%().')
+PCT, LPAREN, RPAREN, DOT = map(pp.Literal, '%().')
 conversion_flag_expr = pp.oneOf(list("#0- +"))
-conversion_type_expr = pp.oneOf(list("diouxXeEfFgGcrsa%"))
+conversion_type_expr = pp.oneOf(list("diouxXeEfFgGcrsa"))
 length_mod_expr = pp.oneOf(list("hlL"))
 interp_expr = (
     PCT
     + pp.Optional(LPAREN + pp.Word(pp.printables, excludeChars=")")("mapping_key") + RPAREN)
     + pp.Optional(conversion_flag_expr("conversion_flag"))
     + pp.Optional(('*' | pp.pyparsing_common.integer)("min_width"))
-    + pp.Optional(DOT + pp.pyparsing_common.integer("max_width"))
+    + pp.Optional(DOT + ('*' | pp.pyparsing_common.integer)("max_width"))
     + pp.Optional(length_mod_expr("length_modifier"))
     + conversion_type_expr("conversion_type")
 )
 
 strformatter = string.Formatter()
 
-preknown = set(builtins.__dict__).union({'__doc__', '__file__', '__name__', '__annotations__', '__dict__ '})
+preknown = set(builtins.__dict__).union({'__doc__', '__file__', '__name__', '__annotations__', '__dict__', '__builtins__'})
 known_functions = dict()
 
 class StrFormatLister(ast.NodeVisitor):
@@ -34,14 +34,82 @@ class StrFormatLister(ast.NodeVisitor):
             nargs = len(node.right.elts)
             # this is for str.format():
             #nelements = strformatter.parse(formatter)
-            nelements = list(interp_expr.scanString(formatter))
+            elements = list(interp_expr.scanString(formatter))
+            nelements = 0
+            for el, _, _ in elements:
+                nelements += 1
+                try:
+                    if '*' in el.max_width:
+                        nelements += 1
+                except TypeError:
+                    pass
+                try:
+                    if '*' in el.min_width:
+                        nelements += 1
+                except TypeError:
+                    pass
             #pprintast.pprintast(node)
-            #print(formatter, len(nelements), nargs)
-            if nargs != len(nelements):
-                sys.stderr.write('%s:%d: ERROR: String interpolation "%s" (%d arguments) used with %d arguments\n' % (filename, node.lineno, formatter, len(nelements), nargs))
+            #print(formatter, nelements, nargs, elements)
+            if nargs != nelements:
+                sys.stderr.write('%s:%d: ERROR: String interpolation "%s" (%d arguments) used with %d arguments\n' % (
+                    filename, node.lineno, formatter, nelements, nargs))
                 sys.exit(1)
+            else:
+                print("String interpolation ('%(fmt)s', %(nelements)d args) with %(nargs)d args: OK" % dict(
+                    fmt=formatter, nelements=nelements, nargs=nargs))
         #print('function "%s" has %d..%d arguments' % (node.name, min_args, max_args))
         self.generic_visit(node)
+
+    def visit_Call(self, node):
+        self.generic_visit(node)
+        if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Str) and node.func.attr == 'format':
+            formatter = node.func.value.s.strip()
+            nargs = 0
+            for arg in node.args:
+                if isinstance(arg, ast.Starred):
+                    # give up: called with *args, cannot count
+                    return
+                nargs += 1
+            for arg in node.keywords:
+                if arg.arg is None:
+                    # give up: called with **kwargs, cannot count
+                    return
+
+            elements = [field_name
+                for literal_text, field_name, format_spec, conversion in strformatter.parse(formatter)
+                if (field_name, format_spec, conversion) != (None, None, None)]
+            if elements == [''] * len(elements):
+                # unnamed, just need to count
+                if nargs != len(elements):
+                    sys.stderr.write('{}:{:d}: ERROR: String interpolation "{}" ({:d} arguments) used with {} arguments\n'.format(filename, node.lineno, formatter, len(elements), nargs))
+                    sys.exit(1)
+                print("String interpolation ('{}', {nargs} args) with {ncallargs} args: OK".format(
+                    formatter, nargs=nargs, ncallargs=len(elements)))
+                return
+            try:
+                max_field = max(int(field_name) for field_name in elements)
+                if nargs < max_field:
+                    sys.stderr.write('{}:{:d}: ERROR: String interpolation "{}" used with {} arguments, but needs up to index {:d}\n'.format(filename, node.lineno, formatter, nargs, max_field))
+                    sys.exit(1)
+                print("String interpolation ('{}', up to field index {}) with {ncallargs} args: OK".format(
+                    formatter, max_field, ncallargs=len(elements)))
+                return
+            except ValueError:
+                pass
+            
+            #pprintast.pprintast(node)
+            keys_needed = {field_name.split('.')[0] for field_name in elements if field_name != ''}
+            keys_supplied = {arg.arg for arg in node.keywords}
+            
+            if keys_supplied != keys_needed:
+                sys.stderr.write('{}:{:d}: ERROR: String interpolation "{}" is missing keys {}\n'.format(filename, node.lineno, formatter, keys_needed - keys_supplied))
+                sys.exit(1)
+
+            print("String interpolation ('{}') called with all {:d} keywords: OK".format(
+                formatter, len(keys_needed)))
+            
+            return
+            print("{0}{1}{0}".format(nargs, len(elements)))
 
 class FuncLister(ast.NodeVisitor):
     def visit_FunctionDef(self, node):
@@ -58,12 +126,14 @@ class FuncLister(ast.NodeVisitor):
                 if arguments.vararg:
                     max_args = -1
                     break
-                elif arguments.kw_defaults and arg in [arg2.id for arg2 in arguments.kw_defaults]:
+                elif arguments.kw_defaults and arg in [getattr(arg2, 'n', getattr(arg2, 'id', None)) for arg2 in arguments.kw_defaults if arg2 is not None]:
                     pass
                 elif i < optional_args_start:
                     min_args += 1
             if arguments.vararg or arguments.kwarg:
                 max_args = -1
+            else:
+                max_args += len(arguments.kwonlyargs)
         
         if node.name in known_functions:
             min_args_orig, max_args_orig = known_functions[node.name]
@@ -131,14 +201,7 @@ def get_ids(node):
 def assert_unknown(name, node, filename):
     assert name is not None
     if name in known:
-        start = max(0, node.lineno - 2)
-        end = node.lineno + 3
         sys.stderr.write('%s:%d: ERROR: Variable reuse: "%s"\n' % (filename, node.lineno, name))
-        #sys.stderr.write(''.join(open(filename).readlines()[start:end]))
-        #sys.stderr.write("Known variables here: %s\n" % (known - preknown))
-        #sys.stderr.write("Built-ins: %s\n" % (set(builtins.__dict__)))
-        #sys.stderr.write("\n")
-        #raise Exception("Variable reuse")
         sys.exit(1)
 
 asts = []
@@ -231,6 +294,8 @@ for filename, a in asts:
                         #start = max(0, node.lineno - 2)
                         #end = node.lineno + 3
                         sys.stderr.write('%s:%d: ERROR: Variable unknown: "%s"\n' % (filename, node.lineno, id))
+                        sys.stderr.write('{}:{}: ERROR: Variable unknown: "{}"\n'.format(filename, node.lineno, id))
+                        sys.stderr.write('ERROR: Variable unknown: \n'.format())
                         #sys.stderr.write('ERROR: Variable unknown: "%s" near line %d of %s\n' % (id, node.lineno, filename))
                         #sys.stderr.write(''.join(open(filename).readlines()[start:end]))
                         #sys.stderr.write("Known variables here: %s\n" % (known - set(preknown)))
@@ -240,17 +305,18 @@ for filename, a in asts:
             
             for id in forget_here:
                 if id in known:
-                    print('-"%s"' % id)
+                    print('-%s' % id)
                     known.remove(id)
 
         for id in add_here:
             if id not in known:
-                print('+"%s"' % id)
+                print('+%s' % id)
                 known.add(id)
         for id in forget_here:
             if id in known:
-                print('-"%s"' % id)
+                print('-%s' % id)
                 known.remove(id)
 
+#print(known - preknown)
 
 
