@@ -44,7 +44,7 @@ right number of arguments::
 
     print("Hello %s, it is %d:%02d" % ("World", 12, 34)) # OK
     print("Hello %s, it is %d:%02d" % ("World", 12)) # error
-    '\n%s%*s' % (indent, len(key)+3, '')  # error
+    '\n%s%*s' % (indent, len(key)+3, '')  # ok, variable length
     '{}{}'.format(1,2) # ok
     '{}{}'.format(1) # error
     '{}{}'.format(1,2,3) # error
