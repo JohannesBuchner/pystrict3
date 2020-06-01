@@ -7,6 +7,9 @@ pystrict3 checks Python3 code for simple mistakes, such as
 * interpolating strings with the wrong number of arguments,
 * shadowing and re-using variables
 
+This complements other static analysers such as pyflakes, and
+can be used alongside linters.
+
 Rules
 --------------
 
