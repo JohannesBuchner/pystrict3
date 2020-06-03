@@ -34,12 +34,12 @@ pystrict3 enforces that variables are only assigned once.
 This avoids shadowing and change of semantics of variables, and leads to cleaner, more idiomatic code
 with fewer side-effects. It also prevents overwriting python builtins.::
 
-    parse = parse(foo)  ## bad
+    parse = parse(foo)    ## bad
     node = get_node()
-    node.foo()  ## ok, modification
-    node += 3   ## ok, modification
+    node.foo()            ## ok, modification
+    node += 3             ## ok, modification
 
-    def format(...): ## bad, format is a keyword
+    def format(...):      ## bad, format is a python keyword
     
     import requests, html
     
@@ -51,14 +51,20 @@ when call signatures change to include an additional argument::
 
     def foo(a, b):
         return a*b
-    foo(1, 2)  ## OK
-    foo(123)  ## error: wrong number of arguments
+    foo(1, 2)        ## OK
+    foo(123)         ## error: wrong number of arguments
 
     def bar(a, b=1):
         return a*b
-    bar(1)  ## OK
-    bar(1, 2)  ## OK
-    bar(1, 2, 3)  ## error: wrong number of arguments
+    bar(1)           ## OK
+    bar(1, 2)        ## OK
+    bar(1, 2, 3)     ## error: wrong number of arguments
+    
+    # builtin module signatures are verified too:
+    
+    import os, cmath
+    os.mkdir("foo", "bar") ## error: wrong number of arguments
+    cmath.exp()            ## error: wrong number of arguments
 
 
 pystrict3 checks that classes are instanciated with the right number of arguments,
