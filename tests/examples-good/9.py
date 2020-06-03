@@ -1,7 +1,6 @@
 """foo bar"""
 
-del __doc__
-__doc__ = """foo baz"""
+__doc__ += """ and so on"""
 
 map(str.tolower, __builtins__) ## ok, builtin names
 
