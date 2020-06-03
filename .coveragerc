@@ -1,0 +1,4 @@
+[run]
+include = 
+	pystrict3.py
+	pystrict3lib/*
