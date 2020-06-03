@@ -31,33 +31,43 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import ast
 import sys
 
+def count_function_arguments(arguments):
+    """ returns minimum and maximum number of arguments. 
+    If uncertain, the maximum is -1. """
+    min_args = 0
+    max_args = 0
+    optional_args_start = len(arguments.args) - len(arguments.defaults)
+    for i, arg in enumerate(arguments.args):
+        max_args += 1
+        if arguments.vararg:
+            max_args = -1
+            break
+        elif arguments.kw_defaults and arg.arg in [getattr(arg2, 'n', getattr(arg2, 'id', None)) for arg2 in arguments.kw_defaults if arg2 is not None]:
+            pass
+        elif i < optional_args_start:
+            min_args += 1
+    if arguments.vararg or arguments.kwarg:
+        max_args = -1
+    else:
+        max_args += len(arguments.kwonlyargs)
+    return min_args, max_args
+
 
 class FuncLister(ast.NodeVisitor):
+    """Compiles a list of all functions and class inits
+    with their call signatures.
+    
+    Result is in the known_functions attribute."""
     def __init__(self, filename):
         self.filename = filename
         self.known_functions = {}
+
     def visit_FunctionDef(self, node):
         min_args = 0
         max_args = -1
-        arguments = node.args
         #pprintast.pprintast(node)
         if node.decorator_list == []:
-            min_args = 0
-            max_args = 0
-            optional_args_start = len(arguments.args) - len(arguments.defaults)
-            for i, arg in enumerate(arguments.args):
-                max_args += 1
-                if arguments.vararg:
-                    max_args = -1
-                    break
-                elif arguments.kw_defaults and arg in [getattr(arg2, 'n', getattr(arg2, 'id', None)) for arg2 in arguments.kw_defaults if arg2 is not None]:
-                    pass
-                elif i < optional_args_start:
-                    min_args += 1
-            if arguments.vararg or arguments.kwarg:
-                max_args = -1
-            else:
-                max_args += len(arguments.kwonlyargs)
+            min_args, max_args = count_function_arguments(node.args)
         
         if node.name in self.known_functions:
             min_args_orig, max_args_orig = self.known_functions[node.name]
@@ -67,10 +77,39 @@ class FuncLister(ast.NodeVisitor):
             else:
                 max_args = max(max_args, max_args_orig)
         self.known_functions[node.name] = (min_args, max_args)
+        
         print('function "%s" has %d..%d arguments' % (node.name, min_args, max_args))
+        self.generic_visit(node)
+    
+    def visit_ClassDef(self, node):
+        # find the child that defines __init__
+        if node.decorator_list == []:
+            if node.name in self.known_functions:
+                sys.stderr.write('%s:%d: ERROR: Class "%s" redefined\n' % (
+                    self.filename, node.lineno, node.name))
+                sys.exit(1)
+            
+            for child in ast.iter_child_nodes(node):
+                # look for __init__ method:
+                if not isinstance(child, ast.FunctionDef):
+                    continue
+                if not child.name == '__init__': 
+                    continue
+                
+                arguments = child.args
+                if len(arguments.args) >= 1 and arguments.args[0].arg == 'self':
+                    min_args, max_args = count_function_arguments(arguments)
+                    # remove self from arguments, as it is supplied by Python
+                    if max_args > 0:
+                        max_args -= 1
+                    min_args -= 1
+                    self.known_functions[node.name] = (min_args, max_args)
+                    print('class "%s" init has %d..%d arguments' % (node.name, min_args, max_args))
         self.generic_visit(node)
 
 class CallLister(ast.NodeVisitor):
+    """Verifies all calls against call signatures in known_functions.
+    Unknown functions are not verified."""
     def __init__(self, filename, known_functions):
         self.filename = filename
         self.known_functions = known_functions

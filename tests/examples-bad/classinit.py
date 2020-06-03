@@ -15,5 +15,5 @@ class Foo0():
 		pass
 
 Foo0()
-Foo0(123)
+Foo0(123)  ## error expected: takes zero arguments
 
