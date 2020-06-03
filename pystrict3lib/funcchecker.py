@@ -34,27 +34,14 @@ import sys
 
 def count_function_min_arguments(arguments):
     """ returns minimum number of arguments. """
-    min_args = 0
-    optional_args_start = len(arguments.args) - len(arguments.defaults)
-    for i, arg in enumerate(arguments.args):
-        if arguments.kw_defaults and arg.arg in [getattr(arg2, 'n', getattr(arg2, 'id', None)) for arg2 in arguments.kw_defaults if arg2 is not None]:
-            pass
-        if i < optional_args_start:
-            min_args += 1
-    return min_args
+    return len(arguments.args) - len(arguments.defaults)
 
 
 def count_function_max_arguments(arguments):
     """ returns maximum number of arguments. If uncertain, returns -1. """
     if arguments.vararg or arguments.kwarg:
         return -1
-    max_args = 0
-    if arguments.vararg:
-        return -1
-    for i, arg in enumerate(arguments.args):
-        max_args += 1
-    max_args += len(arguments.kwonlyargs)
-    return max_args
+    return len(arguments.args) + len(arguments.kwonlyargs)
 
 
 def count_function_arguments(arguments):

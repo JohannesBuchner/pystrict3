@@ -35,3 +35,20 @@ class FooBaz(FooMany, FooBar):
 
 FooMany.permanent()
 foo.permanent()
+
+def makefancy(x):
+	return x
+
+
+class Bar():
+	def __init__(self):
+		self.fancyfoo(1, 2, 3) ## OK, not checking decorated functions
+		self.varargsfunc(1, 2, 3, 4, 5) ## OK, provided enough args
+		self.a = 3
+
+	@makefancy
+	def fancyfoo(self):
+		print(self.a)  ## OK, not checking derived classes
+
+	def varargsfunc(self, a, b, *args):
+		pass
