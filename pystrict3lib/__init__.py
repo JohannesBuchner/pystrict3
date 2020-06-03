@@ -136,11 +136,6 @@ def check_new_identifiers(known, node, filename):
                 else:
                     sys.stderr.write('%s:%d: ERROR: Variable unknown: "%s"\n' % (filename, node.lineno, id))
                     sys.exit(1)
-        
-        for id in forget_here:
-            if id in known:
-                print('-%s' % id)
-                known.remove(id)
 
     for id in add_here:
         if id not in known:
@@ -198,3 +193,5 @@ def main(filenames):
                 
                 for node in func.body:
                     check_new_identifiers(known_with_args, node, filename)
+
+    print("pystrict3: OK")
