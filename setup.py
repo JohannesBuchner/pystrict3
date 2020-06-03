@@ -20,7 +20,7 @@ except IOError:
     with open(os.path.join(os.path.dirname(__file__), 'HISTORY.rst')) as history_file:
         history = history_file.read()
 
-requirements = []
+requirements = ['pyparsing']
 
 setup_requirements = ['pytest-runner', ]
 
