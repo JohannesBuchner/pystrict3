@@ -46,7 +46,7 @@ setup(
     license="BSD",
     long_description=readme + '\n\n' + history,
     name='pystrict3',
-    py_modules=['pystrict3lib'],
+    packages=['pystrict3lib'],
     scripts=['pystrict3.py'],
     setup_requires=setup_requirements,
     test_suite='tests',
