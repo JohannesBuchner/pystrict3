@@ -36,6 +36,7 @@ import builtins
 #from classchecker import 
 from .funcchecker import FuncLister, CallLister
 from .stringchecker import StrFormatLister
+from .classchecker import ClassPropertiesLister
 
 preknown = set(builtins.__dict__).union({'__doc__', '__file__', '__name__', '__annotations__', '__dict__', '__builtins__'})
 
@@ -167,10 +168,12 @@ def main(filenames):
         a = ast.parse(open(filename).read())
 
         StrFormatLister(filename=filename).visit(a)
+        ClassPropertiesLister(filename=filename).visit(a)
         
         funcs = FuncLister(filename=filename)
         funcs.visit(a)
         known_functions.update(funcs.known_functions)
+        
         
         asts.append((filename, a))
 
