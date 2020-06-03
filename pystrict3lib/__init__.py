@@ -150,6 +150,7 @@ def check_new_identifiers(known, node, filename):
 def main(filenames):
     """ Verify python files listed in filenames """
     known_functions = dict()
+    FuncLister.load_builtin_functions()
 
     asts = []
     for filename in filenames:

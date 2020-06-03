@@ -4,6 +4,6 @@ class FooMany(object):
 	def foo0(self):
 		pass
 	def foo1(self, a):
-		self.foo0(1)
+		self.foo0(1)  ## error: too many arguments
 
 

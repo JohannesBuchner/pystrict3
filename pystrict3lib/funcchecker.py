@@ -32,7 +32,23 @@ import ast
 import sys
 import inspect
 import importlib
+import builtins
 
+
+def parse_builtin_signature(signature):
+    min_args = 0
+    for param in signature.parameters.values():
+        if param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD or param.kind == inspect.Parameter.POSITIONAL_ONLY:
+            if param.default == inspect.Parameter.empty:
+                min_args += 1
+        else:
+            break
+    for param in signature.parameters.values():
+        if param.kind == inspect.Parameter.VAR_KEYWORD or param.kind == inspect.Parameter.VAR_POSITIONAL:
+            return min_args, -1
+    
+    max_args = len(signature.parameters)
+    return min_args, max_args
 
 def count_function_min_arguments(arguments):
     """ returns minimum number of arguments. """
@@ -77,8 +93,19 @@ class FuncLister(ast.NodeVisitor):
     Result is in the known_functions attribute."""
     def __init__(self, filename):
         self.filename = filename
-        self.known_functions = {}
+        self.known_functions = dict(**FuncLister.KNOWN_BUILTIN_FUNCTIONS)
         self.known_staticmethods = {}
+    
+    KNOWN_BUILTIN_FUNCTIONS = {}
+    
+    @staticmethod
+    def load_builtin_functions():
+        for f, func in builtins.__dict__.items():
+            if inspect.isbuiltin(func) or inspect.isfunction(func):
+                try:
+                    FuncLister.KNOWN_BUILTIN_FUNCTIONS[f] = parse_builtin_signature(inspect.signature(func))
+                except ValueError:
+                    FuncLister.KNOWN_BUILTIN_FUNCTIONS[f] = 0, -1
 
     def visit_FunctionDef(self, node):
         is_staticmethod = len(node.decorator_list) == 1 and isinstance(node.decorator_list[0], ast.Name) and node.decorator_list[0].id == 'staticmethod'
@@ -163,21 +190,10 @@ class CallLister(ast.NodeVisitor):
             print("call(%s with %d%s args): OK" % (funcname, min_call_args, '+' if may_have_more else ''))
 
 
-def parse_builtin_signature(signature):
-    min_args = 0
-    for param in signature.parameters.values():
-        if param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD or param.kind == inspect.Parameter.POSITIONAL_ONLY:
-            if param.default == inspect.Parameter.empty:
-                min_args += 1
-        else:
-            break
-    for param in signature.parameters.values():
-        if param.kind == inspect.Parameter.VAR_KEYWORD or param.kind == inspect.Parameter.VAR_POSITIONAL:
-            return min_args, -1
-    
-    max_args = len(signature.parameters)
-    return min_args, max_args
-
+BUILTIN_MODULES = []
+for m in sys.builtin_module_names:
+    if not m.startswith('_'):
+        BUILTIN_MODULES.append(m)
 
 class BuiltinCallLister(ast.NodeVisitor):
     """Verifies all calls against call signatures in known_functions.
@@ -216,7 +232,7 @@ class BuiltinCallLister(ast.NodeVisitor):
     def visit_Call(self, node):
         self.generic_visit(node)
         if not isinstance(node.func, ast.Attribute):
-            print("skipping call: not an attribute")
+            # print("skipping call: not an attribute")
             return
         if isinstance(node.func.value, ast.Attribute) and isinstance(node.func.value.value, ast.Name):
             module_name = node.func.value.value.id + '.' + node.func.value.attr
@@ -225,11 +241,11 @@ class BuiltinCallLister(ast.NodeVisitor):
             funcname = node.func.attr
             module_name = node.func.value.id
         else:
-            print("skipping call: not an 1 or 2-layer attribute")
+            # print("skipping call: not an 1 or 2-layer attribute: %s")
             return
 
         if module_name not in BuiltinCallLister.KNOWN_BUILTINS:
-            print("skipping call into unknown module")
+            print('skipping call into unknown module "%s"' % module_name)
             return
 
         functions = BuiltinCallLister.KNOWN_BUILTINS[module_name]
