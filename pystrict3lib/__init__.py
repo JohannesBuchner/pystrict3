@@ -62,12 +62,14 @@ def get_ids(node):
 def assert_unknown(name, known, node, filename):
     """unified error message verifying `name` is in set `known`"""
     assert name is not None
-    if name in preknown:
-        sys.stderr.write('%s:%d: ERROR: Overwriting builtin variable: "%s"\n' % (filename, node.lineno, name))
-        sys.exit(1)
+    # the nested if allows deleting builtins and re-defining them afterwards
     if name in known:
-        sys.stderr.write('%s:%d: ERROR: Variable reuse: "%s"\n' % (filename, node.lineno, name))
-        sys.exit(1)
+        if name in preknown:
+            sys.stderr.write('%s:%d: ERROR: Overwriting builtin variable: "%s"\n' % (filename, node.lineno, name))
+            sys.exit(1)
+        else:
+            sys.stderr.write('%s:%d: ERROR: Variable reuse: "%s"\n' % (filename, node.lineno, name))
+            sys.exit(1)
 
 
 def check_new_identifiers(known, node, filename):
