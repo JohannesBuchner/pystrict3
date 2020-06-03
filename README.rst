@@ -79,9 +79,8 @@ when call signatures change to include an additional argument::
     
     Foo(1, 2)  ## error: wrong number of arguments for __init__
     foo = Foo(1)  ## OK
-    
-    foo.foo(1) ## error, wrong number of arguments
 
+    # real example:
     class Ellipse:
         def __init__(self,center,radius_x,radius_y,fill_color,line_color,line_width):
             self.center = center
@@ -196,23 +195,15 @@ How to write to pystrict3 compliance:
     USE_JYTHON = False
     try:
         # ... code detecting something, which throws an exception
-        USE_JYTHON = True
+        USE_JYTHON = True  ## re-assigning: not allowed
+        # could use instead:
+        # USE_JYTHON |= True
     except:
         pass
-    
-    # new: re-arrange
-    try:
-        # ... code detecting something, which throws an exception
-        USE_JYTHON = True
-    except:
-        USE_JYTHON = False
-    # or use |= 
-    USE_JYTHON |= True
     # or define a function
-    USE_JYTHON = True
+    USE_JYTHON = check_jython()
     
     # original: a sorting construct
-    
     changes = True
     while changes:
         changes = False
