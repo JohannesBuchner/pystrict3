@@ -8,7 +8,7 @@ pystrict3 statically checks Python3 code for simple mistakes, such as
 * shadowing and re-using variables
 
 This complements other static analysers such as pyflakes, and
-can be used alongside linters and code format checkers.
+can be used alongside linters and code format checkers (such as pylint and flake8).
 
 .. image:: https://travis-ci.org/JohannesBuchner/pystrict3.svg?branch=master
     :target: https://travis-ci.org/JohannesBuchner/pystrict3
@@ -19,7 +19,7 @@ can be used alongside linters and code format checkers.
 Assumptions
 -------------
 
-pystrict3 assumes and asserts unsurprising Python code, so
+pystrict3 assumes unsurprising Python code, so
 
 * no monkey patching
 * no magic attributes (__dict__, __local__) that alter classes and variables
@@ -133,13 +133,6 @@ Example stderr outputs::
 
 Return code is 1 if a error was detected, or 0 otherwise.
 For non-verbose, pipe stdout to /dev/null.
-
-Future
---------
-
-Programs where variables do not change are easier to optimize and parallelise.
-Perhaps in the future, python compilers can take advantage of this.
-
 
 Licence
 ---------
