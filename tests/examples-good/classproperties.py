@@ -11,7 +11,14 @@ class FooMany():
 		print(self.d, self.e)  ## OK, assigned in init
 	def bar(self):
 		self.b = 123
+		self.foo()
 
 foo = FooMany("Hello!")
 
+class FooBar(FooMany):
+	def foo(self):
+		print(self.unknown)  ## OK, not checking derived classes
 
+class FooBaz(FooMany, FooBar):
+	def foo(self):
+		print(self.unknown)  ## OK, not checking complex classes

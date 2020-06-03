@@ -30,7 +30,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import ast
 import sys
-import keyword
 import builtins
 #import pprintast
 #from classchecker import 
@@ -47,12 +46,6 @@ def flat_walk(node):
         for child in ast.iter_child_nodes(node):
             #print(node, child)
             yield from flat_walk(child)
-
-def function_walk(node):
-    if isinstance(node, ast.FunctionDef) or isinstance(node, ast.ClassDef) or isinstance(node, ast.Lambda):
-        yield node
-    for child in ast.iter_child_nodes(node):
-        yield from function_walk(child)
 
 def get_ids(node):
     if hasattr(node, 'id'):
@@ -137,9 +130,7 @@ def check_new_identifiers(known, node, filename):
         if not isinstance(getattr(el, 'ctx', None), ast.Del):
             for id in get_ids(el):
                 #print("   using: %s" % id)
-                if keyword.iskeyword(id):
-                    pass
-                elif id in known or id in add_here:
+                if id in known or id in add_here:
                     pass
                 else:
                     sys.stderr.write('%s:%d: ERROR: Variable unknown: "%s"\n' % (filename, node.lineno, id))
@@ -192,7 +183,6 @@ def main(filenames):
             del node
 
         parents = [a.body] + [c.body for c in a.body if isinstance(c, ast.ClassDef)]
-        functions = []
         for p in parents:
             for func in p:
                 if not isinstance(func, ast.FunctionDef):

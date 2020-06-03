@@ -30,52 +30,44 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import ast
 import sys
-from .funcchecker import FuncLister
-
-def get_self_attrs(node):
-    if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id == 'self':
-        yield node.value.a
-    if hasattr(node, 'elts'):
-        for el in node.elts:
-            yield from get_self_attrs(el)
-
+from .funcchecker import FuncLister, count_call_arguments
 
 class MethodCallLister(ast.NodeVisitor):
     """Verifies all calls against call signatures in known_methods.
     Unknown functions are not verified."""
-    def __init__(self, filename, known_methods):
+    def __init__(self, filename, known_methods, class_name):
         self.filename = filename
         self.known_methods = known_methods
+        self.class_name = class_name
+
     def visit_Call(self, node):
         self.generic_visit(node)
-        if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name) and node.func.value.id == 'self':
+        if not (isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name) and node.func.value.id == 'self'):
             return
         
-        #pprintast.pprintast(node)
         #print(type(node), type(node.func))
-        funcname = node.func.id
+        funcname = node.func.attr
         if funcname not in self.known_methods:
+            # this is already guaranteed by the ClassPropertiesLister
             return
         min_args, max_args = self.known_methods[funcname]
-        nargs = 0
-        for arg in node.args:
-            if isinstance(arg, ast.Starred):
-                # give up
-                return
-            nargs += 1
-        for arg in node.keywords:
-            nargs += 1
+        min_call_args, may_have_more = count_call_arguments(node)
         
-        # self is also supplied automatically by Python
-        nargs += 1 
+        # self is supplied by Python
+        min_call_args += 1
         
-        if max_args >= 0 and nargs > max_args or nargs < min_args:
-            sys.stderr.write('%s:%d: ERROR: Method "%s" (%d..%d arguments) called with %d arguments\n' % (
-                self.filename, node.lineno, funcname, min_args, max_args, nargs))
+        if max_args >= 0 and min_call_args > max_args:
+            sys.stderr.write('%s:%d: ERROR: Class "%s": Method "%s" (%d..%d arguments) called with too many (%d%s) arguments\n' % (
+                self.filename, node.lineno, self.class_name, 
+                funcname, min_args, max_args, min_call_args, '+' if may_have_more else ''))
+            sys.exit(1)
+        elif min_call_args < min_args and not may_have_more:
+            sys.stderr.write('%s:%d: ERROR: Class "%s": Method "%s" (%d..%d arguments) called with too few (%d%s) arguments\n' % (
+                self.filename, node.lineno, self.class_name, 
+                funcname, min_args, max_args, min_call_args, '+' if may_have_more else ''))
             sys.exit(1)
         else:
-            print("call(%s with %d args): OK" % (funcname, nargs))
-
+            print("call(%s.%s with %d%s args): OK" % (self.class_name, funcname, min_call_args, '+' if may_have_more else ''))
 
 
 class ClassPropertiesLister(ast.NodeVisitor):
@@ -87,10 +79,10 @@ class ClassPropertiesLister(ast.NodeVisitor):
         self.generic_visit(node)
         # skip subclasses
         if len(node.bases) > 1:
-            print("skipping checks on derived class %s" % node.name)
+            print('skipping checks on derived class "%s"' % node.name)
             return
-        if not (len(node.bases) == 1 and isinstance(node.bases[0], ast.Name) and node.bases[0].id == 'object'):
-            print("skipping checks on derived class %s" % node.name)
+        if len(node.bases) > 0 and not (len(node.bases) == 1 and isinstance(node.bases[0], ast.Name) and node.bases[0].id == 'object'):
+            print('skipping checks on derived class "%s"' % node.name)
             return
         # standalone class
         
@@ -125,5 +117,5 @@ class ClassPropertiesLister(ast.NodeVisitor):
         
         known_methods = funcs.known_functions
         
-        MethodCallLister(filename=self.filename, known_methods=known_methods).visit(node)
+        MethodCallLister(filename=self.filename, known_methods=known_methods, class_name=node.name).visit(node)
 

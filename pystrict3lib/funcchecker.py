@@ -36,11 +36,9 @@ def count_function_min_arguments(arguments):
     min_args = 0
     optional_args_start = len(arguments.args) - len(arguments.defaults)
     for i, arg in enumerate(arguments.args):
-        if arguments.vararg:
-            break
-        elif arguments.kw_defaults and arg.arg in [getattr(arg2, 'n', getattr(arg2, 'id', None)) for arg2 in arguments.kw_defaults if arg2 is not None]:
+        if arguments.kw_defaults and arg.arg in [getattr(arg2, 'n', getattr(arg2, 'id', None)) for arg2 in arguments.kw_defaults if arg2 is not None]:
             pass
-        elif i < optional_args_start:
+        if i < optional_args_start:
             min_args += 1
     return min_args
 
@@ -49,10 +47,10 @@ def count_function_max_arguments(arguments):
     if arguments.vararg or arguments.kwarg:
         return -1
     max_args = 0
+    if arguments.vararg:
+        return -1
     for i, arg in enumerate(arguments.args):
         max_args += 1
-        if arguments.vararg:
-            return -1
     max_args += len(arguments.kwonlyargs)
     return max_args
 
@@ -62,6 +60,23 @@ def count_function_arguments(arguments):
     If uncertain, the maximum is -1. """
     return count_function_min_arguments(arguments), count_function_max_arguments(arguments)
 
+
+def count_call_arguments(call):
+    """ returns the number of arguments given to call, and 
+    a bool indicating whether that may be a lower limit """
+    may_have_more = False
+    min_call_args = 0
+    for arg in call.args:
+        if isinstance(arg, ast.Starred):
+            # should not count *args
+            may_have_more |= True
+            continue
+        min_call_args += 1
+    for arg in call.keywords:
+        if arg.arg is None:  # **kwargs
+            may_have_more |= True
+        min_call_args += 1
+    return min_call_args, may_have_more
 
 class FuncLister(ast.NodeVisitor):
     """Compiles a list of all functions and class inits
@@ -132,25 +147,20 @@ class CallLister(ast.NodeVisitor):
         if not isinstance(node.func, ast.Name):
             return
         
-        #pprintast.pprintast(node)
-        #print(type(node), type(node.func))
         funcname = node.func.id
         if funcname not in self.known_functions:
             return
         min_args, max_args = self.known_functions[funcname]
-        nargs = 0
-        for arg in node.args:
-            if isinstance(arg, ast.Starred):
-                # give up
-                return
-            nargs += 1
-        for arg in node.keywords:
-            nargs += 1
+        min_call_args, may_have_more = count_call_arguments(node)
         
-        if max_args >= 0 and nargs > max_args or nargs < min_args:
-            sys.stderr.write('%s:%d: ERROR: Function "%s" (%d..%d arguments) called with %d arguments\n' % (
-                self.filename, node.lineno, funcname, min_args, max_args, nargs))
+        if max_args >= 0 and min_call_args > max_args:
+            sys.stderr.write('%s:%d: ERROR: Function "%s" (%d..%d arguments) called with too many (%d%s) arguments\n' % (
+                self.filename, node.lineno, funcname, min_args, max_args, min_call_args, '+' if may_have_more else ''))
+            sys.exit(1)
+        elif min_call_args < min_args and not may_have_more:
+            sys.stderr.write('%s:%d: ERROR: Function "%s" (%d..%d arguments) called with too few (%d%s) arguments\n' % (
+                self.filename, node.lineno, funcname, min_args, max_args, min_call_args, '+' if may_have_more else ''))
             sys.exit(1)
         else:
-            print("call(%s with %d args): OK" % (funcname, nargs))
+            print("call(%s with %d%s args): OK" % (funcname, min_call_args, '+' if may_have_more else ''))
 

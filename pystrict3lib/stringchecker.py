@@ -101,21 +101,23 @@ class StrFormatLister(ast.NodeVisitor):
                     # give up: called with **kwargs, cannot count
                     return
 
-            elements = [field_name
+            elements = [field_name.split('.')[0]
                 for literal_text, field_name, format_spec, conversion in strformatter.parse(formatter)
                 if (field_name, format_spec, conversion) != (None, None, None)]
             if elements == [''] * len(elements):
                 # unnamed, just need to count
                 if nargs != len(elements):
-                    sys.stderr.write('{}:{:d}: ERROR: String interpolation "{}" ({:d} arguments) used with {} arguments\n'.format(self.filename, node.lineno, formatter, len(elements), nargs))
+                    sys.stderr.write('{}:{:d}: ERROR: String interpolation "{}" ({:d} arguments) used with {} arguments\n'.format(
+                        self.filename, node.lineno, formatter, len(elements), nargs))
                     sys.exit(1)
                 print("String interpolation ('{}', {nargs} args) with {ncallargs} args: OK".format(
                     formatter, nargs=nargs, ncallargs=len(elements)))
                 return
             try:
-                max_field = max(int(field_name) for field_name in elements)
+                max_field = max(int(field_name) for field_name in elements if field_name != '')
                 if nargs < max_field:
-                    sys.stderr.write('{}:{:d}: ERROR: String interpolation "{}" used with {} arguments, but needs up to index {:d}\n'.format(self.filename, node.lineno, formatter, nargs, max_field))
+                    sys.stderr.write('{0}:{1:d}: ERROR: String interpolation "{2}" used with {3} arguments, but needs up to index {4:d}\n'.format(
+                        self.filename, node.lineno, formatter, nargs, max_field))
                     sys.exit(1)
                 print("String interpolation ('{}', up to field index {}) with {ncallargs} args: OK".format(
                     formatter, max_field, ncallargs=len(elements)))
@@ -124,7 +126,7 @@ class StrFormatLister(ast.NodeVisitor):
                 pass
             
             #pprintast.pprintast(node)
-            keys_needed = {field_name.split('.')[0] for field_name in elements if field_name != ''}
+            keys_needed = {field_name for field_name in elements if field_name != ''}
             keys_supplied = {arg.arg for arg in node.keywords}
             
             if len(keys_needed - keys_supplied) > 0:
