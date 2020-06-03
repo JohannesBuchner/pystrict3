@@ -55,4 +55,5 @@ def main():
 	map(str.tolower, [get_node() for i in range(10) for j in range(10)])
 	i = 3
 	j = 4
+	print(i, j)
 

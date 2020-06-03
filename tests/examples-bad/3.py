@@ -1,4 +1,4 @@
 import requests, html
-
-html = requests.get(url)  ## bad: overwrites imported package name
-
+print(html.parse("<body>"))
+html = requests.get("https://example.com/")  ## bad: overwrites imported package name
+print(html)

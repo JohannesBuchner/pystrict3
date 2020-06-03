@@ -3,10 +3,9 @@ pystrict3
 
 pystrict3 statically checks Python3 code for simple mistakes, such as
 
-* calling functions with the wrong number of arguments,
-* interpolating strings with the wrong number of arguments,
-* shadowing and re-using variables
+* calling functions with the wrong number of arguments
 * accessing attributes and methods that are never defined
+* shadowing and re-using variables
 
 This complements other static analysers such as pyflakes, and
 can be used alongside linters and code format checkers.
@@ -25,7 +24,6 @@ pystrict3 assumes and asserts unsurprising Python code, so
 * no monkey patching
 * no magic attributes (__dict__, __local__) that alter classes and variables
 * no altering builtins, etc.
-* no dynamic building classes of the same name in multiple places
 
 Python 3.5 and above is required.
 
@@ -97,20 +95,6 @@ when call signatures change to include an additional argument::
                 (self.center[0],self.center[1],self.radius_x,self.radius_y),
                 "    style=\"fill:%s;stroke:%s;stroke-width:%d\"/>\n" % (colorstr(self.fill_color),colorstr(self.line_color),self.line_width)]
             # error above: self.radius_x vs self.radiusx
-
-pystrict3 checks string interpolation (printf-style % and str.format) 
-for the correct number of arguments and keywords::
-
-    print("Hello %s, it is %d:%02d" % ("World", 12, 34)) # OK
-    print("Hello %s, it is %d:%02d" % ("World", 12)) # error
-    '\n%s%*s' % (indent, len(key)+3, '')  # ok, variable length
-    '{}{}'.format(1,2) # ok
-    '{}{}'.format(1) # error
-    '{}{}'.format(1,2,3) # error
-    '{0}{1}{0}{2}'.format(1,2)  # error: missing index 2
-    '{foo}{bar}'.format(foo=1, bar=2, baz=3)  # ok
-    '{foo}{bar}'.format(foo=1, baz=3)  # error: missing bar
-
 
 
 Contributing
