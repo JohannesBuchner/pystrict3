@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import ast
 import sys
 import builtins
-from .funcchecker import FuncLister, CallLister
+from .funcchecker import FuncLister, CallLister, BuiltinCallLister
 from .classchecker import ClassPropertiesLister
 
 preknown = set(builtins.__dict__).union({'__doc__', '__file__', '__name__', '__annotations__', '__dict__', '__builtins__'})
@@ -157,6 +157,8 @@ def main(filenames):
 
         print("%s: checking class usage ..." % filename)
         ClassPropertiesLister(filename=filename).visit(a)
+        print("%s: checking internals usage ..." % filename)
+        BuiltinCallLister(filename=filename).visit(a)
         
         funcs = FuncLister(filename=filename)
         funcs.visit(a)

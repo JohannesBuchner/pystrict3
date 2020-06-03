@@ -30,6 +30,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import ast
 import sys
+import inspect
+import importlib
 
 
 def count_function_min_arguments(arguments):
@@ -156,6 +158,98 @@ class CallLister(ast.NodeVisitor):
         elif min_call_args < min_args and not may_have_more:
             sys.stderr.write('%s:%d: ERROR: Function "%s" (%d..%d arguments) called with too few (%d%s) arguments\n' % (
                 self.filename, node.lineno, funcname, min_args, max_args, min_call_args, '+' if may_have_more else ''))
+            sys.exit(1)
+        else:
+            print("call(%s with %d%s args): OK" % (funcname, min_call_args, '+' if may_have_more else ''))
+
+
+def parse_builtin_signature(signature):
+    min_args = 0
+    for param in signature.parameters.values():
+        if param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD or param.kind == inspect.Parameter.POSITIONAL_ONLY:
+            if param.default == inspect.Parameter.empty:
+                min_args += 1
+        else:
+            break
+    for param in signature.parameters.values():
+        if param.kind == inspect.Parameter.VAR_KEYWORD or param.kind == inspect.Parameter.VAR_POSITIONAL:
+            return min_args, -1
+    
+    max_args = len(signature.parameters)
+    return min_args, max_args
+
+
+class BuiltinCallLister(ast.NodeVisitor):
+    """Verifies all calls against call signatures in known_functions.
+    Unknown functions are not verified."""
+
+    # lazy load the needed builtin modules
+    KNOWN_BUILTINS = {}
+
+    @staticmethod
+    def load_builtin_module(module_name):
+        if module_name in BuiltinCallLister.KNOWN_BUILTINS:
+            return
+
+        print('analysing builtin module "%s"' % module_name)
+        mod = importlib.import_module(module_name)
+        functions = {}
+        for f in dir(mod):
+            func = getattr(mod, f)
+            if inspect.isbuiltin(func) or inspect.isfunction(func):
+                try:
+                    functions[f] = parse_builtin_signature(inspect.signature(func))
+                except ValueError:
+                    functions[f] = 0, -1
+                # print('+builtin: "%s.%s"' % (module_name, f), functions[f])
+        BuiltinCallLister.KNOWN_BUILTINS[module_name] = functions
+
+    def __init__(self, filename):
+        self.filename = filename
+
+    def visit_Import(self, node):
+        for alias in node.names:
+            if alias.asname is None:
+                BuiltinCallLister.load_builtin_module(alias.name)
+        self.generic_visit(node)
+
+    def visit_Call(self, node):
+        self.generic_visit(node)
+        if not isinstance(node.func, ast.Attribute):
+            print("skipping call: not an attribute")
+            return
+        if isinstance(node.func.value, ast.Attribute) and isinstance(node.func.value.value, ast.Name):
+            module_name = node.func.value.value.id + '.' + node.func.value.attr
+            funcname = node.func.attr
+        elif isinstance(node.func.value, ast.Name):
+            funcname = node.func.attr
+            module_name = node.func.value.id
+        else:
+            print("skipping call: not an 1 or 2-layer attribute")
+            return
+
+        if module_name not in BuiltinCallLister.KNOWN_BUILTINS:
+            print("skipping call into unknown module")
+            return
+
+        functions = BuiltinCallLister.KNOWN_BUILTINS[module_name]
+        if funcname not in functions:
+            sys.stderr.write('%s:%d: ERROR: builtin function "%s.%s" unknown\n' % (
+                self.filename, node.lineno, module_name, funcname))
+            sys.exit(1)
+
+        min_args, max_args = functions[funcname]
+        min_call_args, may_have_more = count_call_arguments(node)
+
+        if max_args >= 0 and min_call_args > max_args:
+            sys.stderr.write('%s:%d: ERROR: builtin function "%s.%s" (%d..%d arguments) called with too many (%d%s) arguments\n' % (
+                self.filename, node.lineno, module_name, funcname, 
+                min_args, max_args, min_call_args, '+' if may_have_more else ''))
+            sys.exit(1)
+        elif min_call_args < min_args and not may_have_more:
+            sys.stderr.write('%s:%d: ERROR: builtin function "%s.%s" (%d..%d arguments) called with too few (%d%s) arguments\n' % (
+                self.filename, node.lineno, module_name, funcname, 
+                min_args, max_args, min_call_args, '+' if may_have_more else ''))
             sys.exit(1)
         else:
             print("call(%s with %d%s args): OK" % (funcname, min_call_args, '+' if may_have_more else ''))
