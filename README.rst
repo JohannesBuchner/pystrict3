@@ -10,6 +10,12 @@ pystrict3 checks Python3 code for simple mistakes, such as
 This complements other static analysers such as pyflakes, and
 can be used alongside linters.
 
+.. image:: https://travis-ci.org/JohannesBuchner/pystrict3.svg?branch=master
+    :target: https://travis-ci.org/JohannesBuchner/pystrict3
+.. image:: https://coveralls.io/repos/github/JohannesBuchner/pystrict3/badge.svg?branch=master
+    :target: https://coveralls.io/github/JohannesBuchner/pystrict3?branch=master
+
+
 Rules
 --------------
 
