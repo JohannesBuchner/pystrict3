@@ -8,12 +8,31 @@ pystrict3 checks Python3 code for simple mistakes, such as
 * shadowing and re-using variables
 
 This complements other static analysers such as pyflakes, and
-can be used alongside linters.
+can be used alongside linters and code format checkers.
 
 .. image:: https://travis-ci.org/JohannesBuchner/pystrict3.svg?branch=master
     :target: https://travis-ci.org/JohannesBuchner/pystrict3
 .. image:: https://coveralls.io/repos/github/JohannesBuchner/pystrict3/badge.svg?branch=master
     :target: https://coveralls.io/github/JohannesBuchner/pystrict3?branch=master
+
+
+Features
+-------------
+
+* Checks string interpolation '%' style for correct number of arguments
+* Checks string interpolation str.format style for correct number of arguments
+* Checks for access of undefined class attributes
+* Checks for access of undefined class methods
+* Checks for correct number of arguments to function, method and class init calls
+
+Assumptions
+-------------
+
+pystrict3 assumes you are writing relatively dumb python code, so
+
+* no monkey patching
+* no magic attributes (__dict__, __local__) access that alters classes and variables
+* no altering builtins, etc.
 
 
 Rules
@@ -47,6 +66,28 @@ when call signatures change to include an additional argument::
     bar(1)  ## OK
     bar(1, 2)  ## OK
     bar(1, 2, 3)  ## error: wrong number of arguments
+
+
+pystrict3 checks that classes are instanciated with the right number of arguments,
+methods are called with the right number of arguments, and
+only attributes are accessed which have been assigned somewhere.
+This catches bugs before execution, for example
+when call signatures change to include an additional argument::
+
+    class Foo():
+        def __init__(self, a):
+            self.a = a
+        def foo(self):
+            self.b = 3
+            print(self.a) ## OK
+        def bar(self, c):
+            print(self.b) ## OK
+            return self.c ## error, because never assigned
+    
+    Foo(1, 2)  ## error: wrong number of arguments for __init__
+    foo = Foo(1)  ## OK
+    
+    foo.foo(1) ## error, wrong number of arguments
 
 pystrict3 checks that printf-style string interpolation is used with the 
 right number of arguments::
@@ -158,12 +199,16 @@ How to write to pystrict3 compliance:
     except:
         pass
     
-    # new: make a function for detection:
+    # new: re-arrange
     try:
         # ... code detecting something, which throws an exception
         USE_JYTHON = True
     except:
         USE_JYTHON = False
+    # or use |= 
+    USE_JYTHON |= True
+    # or define a function
+    USE_JYTHON = True
     
     # original: a sorting construct
     
