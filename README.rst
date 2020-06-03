@@ -20,19 +20,21 @@ can be used alongside linters and code format checkers.
 Assumptions
 -------------
 
-pystrict3 assumes you are writing relatively dumb Python code, so
+pystrict3 assumes and asserts unsurprising Python code, so
 
 * no monkey patching
 * no magic attributes (__dict__, __local__) that alter classes and variables
 * no altering builtins, etc.
 * no dynamic building classes of the same name in multiple places
 
+Python 3.5 and above is required.
 
 Rules
 --------------
 
-pystrict3 enforces that variables are only assigned once, and that python keywords are not overwritten. 
-This avoids shadowing and change of semantics of variables, and leads to cleaner, more idiomatic code::
+pystrict3 enforces that variables are only assigned once. 
+This avoids shadowing and change of semantics of variables, and leads to cleaner, more idiomatic code
+with fewer side-effects. It also prevents overwriting python builtins.::
 
     parse = parse(foo)  ## bad
     node = get_node()
@@ -82,6 +84,20 @@ when call signatures change to include an additional argument::
     
     foo.foo(1) ## error, wrong number of arguments
 
+    class Ellipse:
+        def __init__(self,center,radius_x,radius_y,fill_color,line_color,line_width):
+            self.center = center
+            self.radiusx = radius_x
+            self.radiusy = radius_y
+            self.fill_color = fill_color
+            self.line_color = line_color
+            self.line_width = line_width
+        def strarray(self):
+            return ["  <ellipse cx=\"%d\" cy=\"%d\" rx=\"%d\" ry=\"%d\"\n" %\
+                (self.center[0],self.center[1],self.radius_x,self.radius_y),
+                "    style=\"fill:%s;stroke:%s;stroke-width:%d\"/>\n" % (colorstr(self.fill_color),colorstr(self.line_color),self.line_width)]
+            # error above: self.radius_x vs self.radiusx
+
 pystrict3 checks string interpolation (printf-style % and str.format) 
 for the correct number of arguments and keywords::
 
@@ -106,9 +122,9 @@ pystrict3 may not catch all corner cases.
 It tries hard to avoid unintentional false positives, and has a very
 high code coverage with integration tests (see runtests.sh and tests/ directory).
 
-Tested on activestate recipes, and 1131/1256 of all valid python3
-programs already are pystrict3 compliant, indicating that its guidelines
-are already adhered to. 
+Tested on activestate recipes, approximately half of all valid python3
+programs are pystrict3 compliant, indicating that its guidelines
+are already adhered to.
 
 Usage
 --------
@@ -161,6 +177,14 @@ How to write to pystrict3 compliance:
 
 * Name parts of computation explicitly::
  
+     # bad:
+     magicnumber = sys.argv[1]
+     magicnumber = int(magicnumber)
+     # better:
+     magicnumberstr = sys.argv[1]
+     magicnumber = int(magicnumberstr)
+     
+     
      filename = 'foo.pdf'
      if condition:
         filename = 'foo.png'  # bad

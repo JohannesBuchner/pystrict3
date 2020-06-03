@@ -51,15 +51,17 @@ interp_expr = (
 
 strformatter = string.Formatter()
 
+
 class StrFormatLister(ast.NodeVisitor):
+    """ Check string interpolation """
     def __init__(self, filename):
         self.filename = filename
+
     def visit_BinOp(self, node):
+        # handle %-style strings
         if isinstance(node.op, ast.Mod) and isinstance(node.left, ast.Str) and isinstance(node.right, ast.Tuple):
             formatter = node.left.s
             nargs = len(node.right.elts)
-            # this is for str.format():
-            #nelements = strformatter.parse(formatter)
             elements = list(interp_expr.scanString(formatter))
             nelements = 0
             for el, _, _ in elements:
@@ -74,8 +76,6 @@ class StrFormatLister(ast.NodeVisitor):
                         nelements += 1
                 except TypeError:
                     pass
-            #pprintast.pprintast(node)
-            #print(formatter, nelements, nargs, elements)
             if nargs != nelements:
                 sys.stderr.write('%s:%d: ERROR: String interpolation "%s" (%d arguments) used with %d arguments\n' % (
                     self.filename, node.lineno, formatter, nelements, nargs))
@@ -83,10 +83,10 @@ class StrFormatLister(ast.NodeVisitor):
             else:
                 print("String interpolation ('%(fmt)s', %(nelements)d args) with %(nargs)d args: OK" % dict(
                     fmt=formatter, nelements=nelements, nargs=nargs))
-        #print('function "%s" has %d..%d arguments' % (node.name, min_args, max_args))
         self.generic_visit(node)
 
     def visit_Call(self, node):
+        # handle str.format style strings
         self.generic_visit(node)
         if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Str) and node.func.attr == 'format':
             formatter = node.func.value.s.strip()
@@ -101,9 +101,11 @@ class StrFormatLister(ast.NodeVisitor):
                     # give up: called with **kwargs, cannot count
                     return
 
-            elements = [field_name.split('.')[0]
+            elements = [
+                field_name.split('.')[0]
                 for literal_text, field_name, format_spec, conversion in strformatter.parse(formatter)
-                if (field_name, format_spec, conversion) != (None, None, None)]
+                if (field_name, format_spec, conversion) != (None, None, None)
+            ]
             if elements == [''] * len(elements):
                 # unnamed, just need to count
                 if nargs != len(elements):
@@ -125,7 +127,6 @@ class StrFormatLister(ast.NodeVisitor):
             except ValueError:
                 pass
             
-            #pprintast.pprintast(node)
             keys_needed = {field_name for field_name in elements if field_name != ''}
             keys_supplied = {arg.arg for arg in node.keywords}
             
@@ -136,6 +137,3 @@ class StrFormatLister(ast.NodeVisitor):
 
             print("String interpolation ('{}') called with all {:d} keywords: OK".format(
                 formatter, len(keys_needed)))
-            
-            return
-            print("{0}{1}{0}".format(nargs, len(elements)))

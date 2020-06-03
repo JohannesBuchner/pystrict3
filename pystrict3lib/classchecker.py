@@ -34,6 +34,7 @@ from .funcchecker import FuncLister, count_call_arguments
 
 internal_members = set(dir(object)).union(dir(classmethod)).union(dir(lambda x: x))
 
+
 class MethodCallLister(ast.NodeVisitor):
     """Verifies all calls against call signatures in known_methods.
     Unknown functions are not verified."""
@@ -48,7 +49,6 @@ class MethodCallLister(ast.NodeVisitor):
         if not (isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name) and node.func.value.id == 'self'):
             return
         
-        #print(type(node), type(node.func))
         funcname = node.func.attr
         min_call_args, may_have_more = count_call_arguments(node)
         
@@ -63,7 +63,6 @@ class MethodCallLister(ast.NodeVisitor):
         else:
             # this is already guaranteed by the ClassPropertiesLister
             return
-        
         
         if max_args >= 0 and min_call_args > max_args:
             sys.stderr.write('%s:%d: ERROR: Class "%s": %s "%s" (%d..%d arguments) called with too many (%d%s) arguments\n' % (
@@ -84,11 +83,13 @@ class ClassPropertiesLister(ast.NodeVisitor):
     are set at some point in the same class."""
     def __init__(self, filename):
         self.filename = filename
+
     def visit_ClassDef(self, node):
         self.generic_visit(node)
-        # skip subclasses
+        # skip subclasses metaclasses and other fancy things
         derived_class = len(node.bases) > 1 \
-            or len(node.bases) > 0 and not (len(node.bases) == 1 and isinstance(node.bases[0], ast.Name) and node.bases[0].id == 'object')
+            or len(node.bases) > 0 and not (len(node.bases) == 1 and isinstance(node.bases[0], ast.Name) and node.bases[0].id == 'object') \
+            or len(node.keywords) > 0
         # standalone class
         
         # collect all members
@@ -96,11 +97,13 @@ class ClassPropertiesLister(ast.NodeVisitor):
         known_members = set(internal_members)
         for child in ast.iter_child_nodes(node):
             if isinstance(child, ast.FunctionDef):
+                print("+%s.%s()" % (node.name, child.name))
                 known_members.add(child.name)
             if isinstance(child, ast.Assign):
                 for target in child.targets:
                     for name in ast.walk(target):
                         if isinstance(name, ast.Name):
+                            print("+%s.%s" % (node.name, name.id))
                             known_attributes.add(name.id)
         
         # collect all assigns
@@ -121,8 +124,8 @@ class ClassPropertiesLister(ast.NodeVisitor):
                     print("accessing unknown member %s.%s: possibly OK, derived class" % (node.name, child.attr))
                     continue
 
-                sys.stderr.write('%s:%d: ERROR: accessing unknown class attribute "self.%s"\n' % (
-                    self.filename, child.lineno, child.attr))
+                sys.stderr.write('%s:%d: ERROR: accessing unknown class attribute "%s.%s"\n' % (
+                    self.filename, child.lineno, node.name, child.attr))
                 sys.exit(1)
 
         # verify class members
@@ -133,4 +136,3 @@ class ClassPropertiesLister(ast.NodeVisitor):
             filename=self.filename, class_name=node.name,
             known_methods=funcs.known_functions, known_staticmethods=funcs.known_staticmethods
         ).visit(node)
-

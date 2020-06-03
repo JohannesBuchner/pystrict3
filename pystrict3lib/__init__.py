@@ -31,23 +31,25 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import ast
 import sys
 import builtins
-#import pprintast
-#from classchecker import 
 from .funcchecker import FuncLister, CallLister
 from .stringchecker import StrFormatLister
 from .classchecker import ClassPropertiesLister
 
 preknown = set(builtins.__dict__).union({'__doc__', '__file__', '__name__', '__annotations__', '__dict__', '__builtins__'})
 
+
 def flat_walk(node):
-    #print(node)
+    """ get all code components that are not functions, classes """
     yield node
-    if not isinstance(node, ast.FunctionDef) and not isinstance(node, ast.ClassDef) and not isinstance(node, ast.Lambda) and not isinstance(node, ast.Import) and not isinstance(node, ast.ImportFrom):
+    if not isinstance(node, ast.FunctionDef) and not isinstance(node, ast.ClassDef) and not isinstance(node, ast.Lambda) \
+            and not isinstance(node, ast.Import) and not isinstance(node, ast.ImportFrom):
+
         for child in ast.iter_child_nodes(node):
-            #print(node, child)
             yield from flat_walk(child)
 
+
 def get_ids(node):
+    """get all ids defined in names, tuples and targets here"""
     if hasattr(node, 'id'):
         yield node.id
     if hasattr(node, 'target'):
@@ -55,22 +57,24 @@ def get_ids(node):
     if hasattr(node, 'elts'):
         for el in node.elts:
             yield from get_ids(el)
-    #if node is not None:
-    #    print("ids from:")
-    #    pprintast.pprintast(node)
 
 
 def assert_unknown(name, known, node, filename):
+    """unified error message verifying `name` is in set `known`"""
     assert name is not None
+    if name in preknown:
+        sys.stderr.write('%s:%d: ERROR: Overwriting builtin variable: "%s"\n' % (filename, node.lineno, name))
+        sys.exit(1)
     if name in known:
         sys.stderr.write('%s:%d: ERROR: Variable reuse: "%s"\n' % (filename, node.lineno, name))
         sys.exit(1)
 
+
 def check_new_identifiers(known, node, filename):
+    """add newly defined variables and verify that the accessed ones are defined in known"""
     add_here = set()
     forget_here = set()
     for el in flat_walk(node):
-        #print(el, list(get_ids(getattr(el, 'target', None))), [n.asname or n.name for n in getattr(el, 'names', [])], [list(get_ids(t)) for t in getattr(el, 'targets', [])], [list(get_ids(t)) for t in getattr(el, 'generators', [])])
         # find all name nodes and look at ids
         if hasattr(el, 'names'):
             names = el.names
@@ -79,7 +83,6 @@ def check_new_identifiers(known, node, filename):
                     name = getattr(name, 'asname')
                 elif hasattr(name, 'name'):
                     name = name.name
-                #print("+%s" % name)
                 assert_unknown(name, known, node, filename)
                 name = name.split('.')[0]
                 add_here.add(name)
@@ -95,7 +98,6 @@ def check_new_identifiers(known, node, filename):
                         if id in known:
                             known.remove(id)
                     else:
-                        #print("+%s" % id)
                         assert_unknown(id, known, node, filename)
                         add_here.add(id)
             del target, targets
@@ -118,7 +120,6 @@ def check_new_identifiers(known, node, filename):
             generators = el.generators
             for target in generators:
                 for id in get_ids(target):
-                    #print("+%s" % id)
                     assert_unknown(id, known, node, filename)
                     add_here.add(id)
                     forget_here.add(id)
@@ -129,7 +130,6 @@ def check_new_identifiers(known, node, filename):
                 add_here.add(el.name)
         if not isinstance(getattr(el, 'ctx', None), ast.Del):
             for id in get_ids(el):
-                #print("   using: %s" % id)
                 if id in known or id in add_here:
                     pass
                 else:
@@ -152,33 +152,32 @@ def check_new_identifiers(known, node, filename):
 
 
 def main(filenames):
+    """ Verify python files listed in filenames """
     known_functions = dict()
 
     asts = []
     for filename in filenames:
         a = ast.parse(open(filename).read())
 
+        print("%s: checking string formatting ..." % filename)
         StrFormatLister(filename=filename).visit(a)
+        print("%s: checking class usage ..." % filename)
         ClassPropertiesLister(filename=filename).visit(a)
         
         funcs = FuncLister(filename=filename)
         funcs.visit(a)
         known_functions.update(funcs.known_functions)
         
-        
         asts.append((filename, a))
 
     for filename, a in asts:
         known = set(preknown)
 
+        print("%s: checking calls ..." % filename)
         CallLister(filename=filename, known_functions=known_functions).visit(a)
         
+        print("%s: checking variables ..." % filename)
         for node in a.body:
-            #print()
-            #print(node)
-            #pprintast.pprintast(node)
-            #print(known - set(builtins.__dict__))
-            #print(''.join(open(sys.argv[1]).readlines()[node.lineno-3:node.lineno+2]))
             check_new_identifiers(known, node, filename)
             del node
 
@@ -200,7 +199,3 @@ def main(filenames):
                 
                 for node in func.body:
                     check_new_identifiers(known_with_args, node, filename)
-        
-    #print(known - preknown)
-
-

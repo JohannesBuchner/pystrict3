@@ -31,6 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import ast
 import sys
 
+
 def count_function_min_arguments(arguments):
     """ returns minimum number of arguments. """
     min_args = 0
@@ -41,6 +42,7 @@ def count_function_min_arguments(arguments):
         if i < optional_args_start:
             min_args += 1
     return min_args
+
 
 def count_function_max_arguments(arguments):
     """ returns maximum number of arguments. If uncertain, returns -1. """
@@ -78,6 +80,7 @@ def count_call_arguments(call):
         min_call_args += 1
     return min_call_args, may_have_more
 
+
 class FuncLister(ast.NodeVisitor):
     """Compiles a list of all functions and class inits
     with their call signatures.
@@ -89,7 +92,6 @@ class FuncLister(ast.NodeVisitor):
         self.known_staticmethods = {}
 
     def visit_FunctionDef(self, node):
-        #pprintast.pprintast(node)
         is_staticmethod = len(node.decorator_list) == 1 and isinstance(node.decorator_list[0], ast.Name) and node.decorator_list[0].id == 'staticmethod'
         if node.decorator_list == [] or is_staticmethod:
             min_args = count_function_min_arguments(node.args)
@@ -141,12 +143,14 @@ class FuncLister(ast.NodeVisitor):
                     print('class "%s" init has %d..%d arguments' % (node.name, min_args, max_args))
         self.generic_visit(node)
 
+
 class CallLister(ast.NodeVisitor):
     """Verifies all calls against call signatures in known_functions.
     Unknown functions are not verified."""
     def __init__(self, filename, known_functions):
         self.filename = filename
         self.known_functions = known_functions
+
     def visit_Call(self, node):
         self.generic_visit(node)
         if not isinstance(node.func, ast.Name):
@@ -168,4 +172,3 @@ class CallLister(ast.NodeVisitor):
             sys.exit(1)
         else:
             print("call(%s with %d%s args): OK" % (funcname, min_call_args, '+' if may_have_more else ''))
-
