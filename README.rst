@@ -126,6 +126,12 @@ Tested on activestate recipes, approximately half of all valid python3
 programs are pystrict3 compliant, indicating that its guidelines
 are already adhered to.
 
+Install
+-------
+::
+
+    $ pip3 install pystrict3
+
 Usage
 --------
 Run with::
