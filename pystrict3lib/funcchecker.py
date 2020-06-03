@@ -31,26 +31,36 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import ast
 import sys
 
-def count_function_arguments(arguments):
-    """ returns minimum and maximum number of arguments. 
-    If uncertain, the maximum is -1. """
+def count_function_min_arguments(arguments):
+    """ returns minimum number of arguments. """
     min_args = 0
-    max_args = 0
     optional_args_start = len(arguments.args) - len(arguments.defaults)
     for i, arg in enumerate(arguments.args):
-        max_args += 1
         if arguments.vararg:
-            max_args = -1
             break
         elif arguments.kw_defaults and arg.arg in [getattr(arg2, 'n', getattr(arg2, 'id', None)) for arg2 in arguments.kw_defaults if arg2 is not None]:
             pass
         elif i < optional_args_start:
             min_args += 1
+    return min_args
+
+def count_function_max_arguments(arguments):
+    """ returns maximum number of arguments. If uncertain, returns -1. """
     if arguments.vararg or arguments.kwarg:
-        max_args = -1
-    else:
-        max_args += len(arguments.kwonlyargs)
-    return min_args, max_args
+        return -1
+    max_args = 0
+    for i, arg in enumerate(arguments.args):
+        max_args += 1
+        if arguments.vararg:
+            return -1
+    max_args += len(arguments.kwonlyargs)
+    return max_args
+
+
+def count_function_arguments(arguments):
+    """ returns minimum and maximum number of arguments. 
+    If uncertain, the maximum is -1. """
+    return count_function_min_arguments(arguments), count_function_max_arguments(arguments)
 
 
 class FuncLister(ast.NodeVisitor):
@@ -63,20 +73,24 @@ class FuncLister(ast.NodeVisitor):
         self.known_functions = {}
 
     def visit_FunctionDef(self, node):
-        min_args = 0
-        max_args = -1
         #pprintast.pprintast(node)
         if node.decorator_list == []:
-            min_args, max_args = count_function_arguments(node.args)
+            min_args = count_function_min_arguments(node.args)
+            max_args = count_function_max_arguments(node.args)
+        else:
+            min_args = 0
+            max_args = -1
         
         if node.name in self.known_functions:
             min_args_orig, max_args_orig = self.known_functions[node.name]
-            min_args = min(min_args, min_args_orig)
+            min_combined_args = min(min_args, min_args_orig)
             if max_args == -1 or max_args_orig == -1:
-                max_args = -1
+                max_combined_args = -1
             else:
-                max_args = max(max_args, max_args_orig)
-        self.known_functions[node.name] = (min_args, max_args)
+                max_combined_args = max(max_args, max_args_orig)
+        else:
+            min_combined_args, max_combined_args = min_args, max_args
+        self.known_functions[node.name] = (min_combined_args, max_combined_args)
         
         print('function "%s" has %d..%d arguments' % (node.name, min_args, max_args))
         self.generic_visit(node)

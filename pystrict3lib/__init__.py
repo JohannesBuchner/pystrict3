@@ -189,11 +189,28 @@ def main(filenames):
             #print(known - set(builtins.__dict__))
             #print(''.join(open(sys.argv[1]).readlines()[node.lineno-3:node.lineno+2]))
             check_new_identifiers(known, node, filename)
+            del node
 
-        for node in a.body:
-            if isinstance(node, ast.FunctionDef) or isinstance(node, ast.ClassDef):
-                pass
-
+        parents = [a.body] + [c.body for c in a.body if isinstance(c, ast.ClassDef)]
+        functions = []
+        for p in parents:
+            for func in p:
+                if not isinstance(func, ast.FunctionDef):
+                    continue
+                
+                # add func argument names to known
+                known_with_args = set(known)
+                arguments = func.args
+                known_with_args = known_with_args.union({arg.arg for arg in arguments.args})
+                known_with_args = known_with_args.union({arg.arg for arg in arguments.kwonlyargs})
+                if arguments.vararg is not None:
+                    known_with_args.add(arguments.vararg.arg)
+                if arguments.kwarg is not None:
+                    known_with_args.add(arguments.kwarg.arg)
+                
+                for node in func.body:
+                    check_new_identifiers(known_with_args, node, filename)
+        
     #print(known - preknown)
 
 
