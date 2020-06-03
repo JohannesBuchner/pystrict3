@@ -38,7 +38,7 @@ pystrict3 assumes you are writing relatively dumb python code, so
 Rules
 --------------
 
-pystrict3 enforces that variables are only assigned once, and that python keywords are not overwritten. 
+pystrict3 enforces that **variables are only assigned once**, and that python keywords are not overwritten. 
 This avoids shadowing and change of semantics of variables, and leads to cleaner, more idiomatic code::
 
     parse = parse(foo)  ## bad
@@ -52,8 +52,8 @@ This avoids shadowing and change of semantics of variables, and leads to cleaner
     
     html = requests.get(url)  ## bad: overwrites imported package name
 
-pystrict3 checks that functions are called with the
-right number of arguments. This catches bugs before execution, for example
+pystrict3 checks that **functions are called with the
+right number of arguments**. This catches bugs before execution, for example
 when call signatures change to include an additional argument::
 
     def foo(a, b):
@@ -68,9 +68,9 @@ when call signatures change to include an additional argument::
     bar(1, 2, 3)  ## error: wrong number of arguments
 
 
-pystrict3 checks that classes are instanciated with the right number of arguments,
-methods are called with the right number of arguments, and
-only attributes are accessed which have been assigned somewhere.
+pystrict3 checks that **classes are instanciated with the right number of arguments**,
+**methods are called with the right number of arguments**, and
+**only attributes are accessed which have been assigned somewhere**.
 This catches bugs before execution, for example
 when call signatures change to include an additional argument::
 
@@ -89,8 +89,8 @@ when call signatures change to include an additional argument::
     
     foo.foo(1) ## error, wrong number of arguments
 
-pystrict3 checks that printf-style string interpolation is used with the 
-right number of arguments::
+pystrict3 **checks string interpolation** (printf-style % and str.format) 
+for the correct number of arguments and keywords::
 
     print("Hello %s, it is %d:%02d" % ("World", 12, 34)) # OK
     print("Hello %s, it is %d:%02d" % ("World", 12)) # error
