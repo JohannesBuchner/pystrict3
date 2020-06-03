@@ -32,6 +32,8 @@ import ast
 import sys
 from .funcchecker import FuncLister, count_call_arguments
 
+internal_members = set(dir(object)).union(dir(classmethod)).union(dir(lambda x: x))
+
 class MethodCallLister(ast.NodeVisitor):
     """Verifies all calls against call signatures in known_methods.
     Unknown functions are not verified."""
@@ -87,13 +89,18 @@ class ClassPropertiesLister(ast.NodeVisitor):
         # standalone class
         
         # collect all members
-        known_members = set()
+        known_attributes = set()
+        known_members = set(internal_members)
         for child in ast.iter_child_nodes(node):
             if isinstance(child, ast.FunctionDef):
                 known_members.add(child.name)
+            if isinstance(child, ast.Assign):
+                for target in child.targets:
+                    for name in ast.walk(target):
+                        if isinstance(name, ast.Name):
+                            known_attributes.add(name.id)
         
         # collect all assigns
-        known_attributes = set()
         for child in ast.walk(node):
             if isinstance(child, ast.Attribute) and isinstance(child.value, ast.Name) and child.value.id == 'self' and isinstance(child.ctx, ast.Store):
                 known_attributes.add(child.attr)
@@ -110,7 +117,6 @@ class ClassPropertiesLister(ast.NodeVisitor):
                     self.filename, child.lineno, child.attr))
                 sys.exit(1)
                 
-        
         # verify class members
         funcs = FuncLister(filename=self.filename)
         funcs.visit(node)

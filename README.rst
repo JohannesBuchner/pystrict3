@@ -1,11 +1,12 @@
 pystrict3
 ----------
 
-pystrict3 checks Python3 code for simple mistakes, such as
+pystrict3 statically checks Python3 code for simple mistakes, such as
 
 * calling functions with the wrong number of arguments,
 * interpolating strings with the wrong number of arguments,
 * shadowing and re-using variables
+* accessing attributes and methods that are never defined
 
 This complements other static analysers such as pyflakes, and
 can be used alongside linters and code format checkers.
@@ -16,29 +17,21 @@ can be used alongside linters and code format checkers.
     :target: https://coveralls.io/github/JohannesBuchner/pystrict3?branch=master
 
 
-Features
--------------
-
-* Checks string interpolation '%' style for correct number of arguments
-* Checks string interpolation str.format style for correct number of arguments
-* Checks for access of undefined class attributes
-* Checks for access of undefined class methods
-* Checks for correct number of arguments to function, method and class init calls
-
 Assumptions
 -------------
 
-pystrict3 assumes you are writing relatively dumb python code, so
+pystrict3 assumes you are writing relatively dumb Python code, so
 
 * no monkey patching
-* no magic attributes (__dict__, __local__) access that alters classes and variables
+* no magic attributes (__dict__, __local__) that alter classes and variables
 * no altering builtins, etc.
+* no dynamic building classes of the same name in multiple places
 
 
 Rules
 --------------
 
-pystrict3 enforces that **variables are only assigned once**, and that python keywords are not overwritten. 
+pystrict3 enforces that variables are only assigned once, and that python keywords are not overwritten. 
 This avoids shadowing and change of semantics of variables, and leads to cleaner, more idiomatic code::
 
     parse = parse(foo)  ## bad
@@ -52,8 +45,8 @@ This avoids shadowing and change of semantics of variables, and leads to cleaner
     
     html = requests.get(url)  ## bad: overwrites imported package name
 
-pystrict3 checks that **functions are called with the
-right number of arguments**. This catches bugs before execution, for example
+pystrict3 checks that functions are called with the
+right number of arguments. This catches bugs before execution, for example
 when call signatures change to include an additional argument::
 
     def foo(a, b):
@@ -68,9 +61,9 @@ when call signatures change to include an additional argument::
     bar(1, 2, 3)  ## error: wrong number of arguments
 
 
-pystrict3 checks that **classes are instanciated with the right number of arguments**,
-**methods are called with the right number of arguments**, and
-**only attributes are accessed which have been assigned somewhere**.
+pystrict3 checks that classes are instanciated with the right number of arguments,
+methods are called with the right number of arguments, and
+only attributes are accessed which have been assigned somewhere.
 This catches bugs before execution, for example
 when call signatures change to include an additional argument::
 
@@ -89,7 +82,7 @@ when call signatures change to include an additional argument::
     
     foo.foo(1) ## error, wrong number of arguments
 
-pystrict3 **checks string interpolation** (printf-style % and str.format) 
+pystrict3 checks string interpolation (printf-style % and str.format) 
 for the correct number of arguments and keywords::
 
     print("Hello %s, it is %d:%02d" % ("World", 12, 34)) # OK
@@ -109,10 +102,11 @@ Contributing
 
 Contributions are welcome.
 
-pystrict3 is currently relatively dumb and may not catch all corner cases.
-It tries hard to avoid unintentional false positives.
+pystrict3 may not catch all corner cases.
+It tries hard to avoid unintentional false positives, and has a very
+high code coverage with integration tests (see runtests.sh and tests/ directory).
 
-However, it is tested on activestate recipes, and 1131/1256 of all valid python3
+Tested on activestate recipes, and 1131/1256 of all valid python3
 programs already are pystrict3 compliant, indicating that its guidelines
 are already adhered to. 
 
