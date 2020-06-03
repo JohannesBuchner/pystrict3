@@ -15,8 +15,13 @@ class FooMany():
 		self.b = 123
 		self.foo()
 		print(self.FOO_FORMAT % self.FOO)
+		self.permanent()
 	
 	FOO_FORMAT = "%d"
+	
+	@staticmethod
+	def permanent():
+		print("yes")
 
 foo = FooMany("Hello!")
 
@@ -27,3 +32,6 @@ class FooBar(FooMany):
 class FooBaz(FooMany, FooBar):
 	def foo(self):
 		print(self.unknown)  ## OK, not checking complex classes
+
+FooMany.permanent()
+foo.permanent()

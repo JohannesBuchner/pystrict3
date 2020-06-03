@@ -86,10 +86,12 @@ class FuncLister(ast.NodeVisitor):
     def __init__(self, filename):
         self.filename = filename
         self.known_functions = {}
+        self.known_staticmethods = {}
 
     def visit_FunctionDef(self, node):
         #pprintast.pprintast(node)
-        if node.decorator_list == []:
+        is_staticmethod = len(node.decorator_list) == 1 and isinstance(node.decorator_list[0], ast.Name) and node.decorator_list[0].id == 'staticmethod'
+        if node.decorator_list == [] or is_staticmethod:
             min_args = count_function_min_arguments(node.args)
             max_args = count_function_max_arguments(node.args)
         else:
@@ -105,7 +107,10 @@ class FuncLister(ast.NodeVisitor):
                 max_combined_args = max(max_args, max_args_orig)
         else:
             min_combined_args, max_combined_args = min_args, max_args
-        self.known_functions[node.name] = (min_combined_args, max_combined_args)
+        if is_staticmethod:
+            self.known_staticmethods[node.name] = (min_combined_args, max_combined_args)
+        else:
+            self.known_functions[node.name] = (min_combined_args, max_combined_args)
         
         print('function "%s" has %d..%d arguments' % (node.name, min_args, max_args))
         self.generic_visit(node)

@@ -9,6 +9,9 @@ install:
   - python setup.py install
 
 script:
+  # run tests
   - bash runtests.sh
+  # self-check using installed scripts
+  - pystrict3.py pystrict3.py pystrict3lib/*.py
 
 after_success: coveralls

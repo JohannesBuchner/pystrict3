@@ -37,9 +37,10 @@ internal_members = set(dir(object)).union(dir(classmethod)).union(dir(lambda x: 
 class MethodCallLister(ast.NodeVisitor):
     """Verifies all calls against call signatures in known_methods.
     Unknown functions are not verified."""
-    def __init__(self, filename, known_methods, class_name):
+    def __init__(self, filename, class_name, known_methods, known_staticmethods):
         self.filename = filename
         self.known_methods = known_methods
+        self.known_staticmethods = known_staticmethods
         self.class_name = class_name
 
     def visit_Call(self, node):
@@ -49,23 +50,29 @@ class MethodCallLister(ast.NodeVisitor):
         
         #print(type(node), type(node.func))
         funcname = node.func.attr
-        if funcname not in self.known_methods:
-            # this is already guaranteed by the ClassPropertiesLister
-            return
-        min_args, max_args = self.known_methods[funcname]
         min_call_args, may_have_more = count_call_arguments(node)
         
-        # self is supplied by Python
-        min_call_args += 1
+        if funcname in self.known_staticmethods:
+            min_args, max_args = self.known_staticmethods[funcname]
+            is_staticmethod = True
+        elif funcname in self.known_methods:
+            min_args, max_args = self.known_methods[funcname]
+            # self is supplied by Python
+            min_call_args += 1
+            is_staticmethod = False
+        else:
+            # this is already guaranteed by the ClassPropertiesLister
+            return
+        
         
         if max_args >= 0 and min_call_args > max_args:
-            sys.stderr.write('%s:%d: ERROR: Class "%s": Method "%s" (%d..%d arguments) called with too many (%d%s) arguments\n' % (
-                self.filename, node.lineno, self.class_name, 
+            sys.stderr.write('%s:%d: ERROR: Class "%s": %s "%s" (%d..%d arguments) called with too many (%d%s) arguments\n' % (
+                self.filename, node.lineno, self.class_name, 'static method' if is_staticmethod else 'method',
                 funcname, min_args, max_args, min_call_args, '+' if may_have_more else ''))
             sys.exit(1)
         elif min_call_args < min_args and not may_have_more:
-            sys.stderr.write('%s:%d: ERROR: Class "%s": Method "%s" (%d..%d arguments) called with too few (%d%s) arguments\n' % (
-                self.filename, node.lineno, self.class_name, 
+            sys.stderr.write('%s:%d: ERROR: Class "%s": %s "%s" (%d..%d arguments) called with too few (%d%s) arguments\n' % (
+                self.filename, node.lineno, self.class_name, 'static method' if is_staticmethod else 'method',
                 funcname, min_args, max_args, min_call_args, '+' if may_have_more else ''))
             sys.exit(1)
         else:
@@ -80,12 +87,8 @@ class ClassPropertiesLister(ast.NodeVisitor):
     def visit_ClassDef(self, node):
         self.generic_visit(node)
         # skip subclasses
-        if len(node.bases) > 1:
-            print('skipping checks on derived class "%s"' % node.name)
-            return
-        if len(node.bases) > 0 and not (len(node.bases) == 1 and isinstance(node.bases[0], ast.Name) and node.bases[0].id == 'object'):
-            print('skipping checks on derived class "%s"' % node.name)
-            return
+        derived_class = len(node.bases) > 1 \
+            or len(node.bases) > 0 and not (len(node.bases) == 1 and isinstance(node.bases[0], ast.Name) and node.bases[0].id == 'object')
         # standalone class
         
         # collect all members
@@ -113,15 +116,21 @@ class ClassPropertiesLister(ast.NodeVisitor):
                 if child.attr in known_members:
                     print("accessing member %s.%s: OK" % (node.name, child.attr))
                     continue
+
+                if derived_class:
+                    print("accessing unknown member %s.%s: possibly OK, derived class" % (node.name, child.attr))
+                    continue
+
                 sys.stderr.write('%s:%d: ERROR: accessing unknown class attribute "self.%s"\n' % (
                     self.filename, child.lineno, child.attr))
                 sys.exit(1)
-                
+
         # verify class members
         funcs = FuncLister(filename=self.filename)
         funcs.visit(node)
         
-        known_methods = funcs.known_functions
-        
-        MethodCallLister(filename=self.filename, known_methods=known_methods, class_name=node.name).visit(node)
+        MethodCallLister(
+            filename=self.filename, class_name=node.name,
+            known_methods=funcs.known_functions, known_staticmethods=funcs.known_staticmethods
+        ).visit(node)
 
