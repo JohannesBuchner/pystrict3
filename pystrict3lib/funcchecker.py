@@ -280,10 +280,14 @@ class ModuleCallLister(ast.NodeVisitor):
                     print('skipping loading module "%s" outside standard lib' % module_name)
                     return
 
-        print('+loading module %s' % module_name)
-        mod = importlib.import_module(module_name)
-        ModuleCallLister.KNOWN_MODULES[module_name] = mod
-        return mod
+        try:
+            print('+loading module %s' % module_name)
+            mod = importlib.import_module(module_name)
+            ModuleCallLister.KNOWN_MODULES[module_name] = mod
+            return mod
+        except ImportError:
+            print('WARNING: loading module %s failed' % module_name)
+            return None
 
     def get_function(self, module_name, funcname):
         mod = ModuleCallLister.KNOWN_MODULES[module_name]
@@ -387,12 +391,12 @@ class ModuleCallLister(ast.NodeVisitor):
         min_call_args, may_have_more = count_call_arguments(node)
 
         if max_args >= 0 and min_call_args > max_args:
-            sys.stderr.write('%s:%d: ERROR: builtin function "%s.%s" (%d..%d arguments) called with too many (%d%s) arguments\n' % (
+            sys.stderr.write('%s:%d: ERROR: function "%s.%s" (%d..%d arguments) called with too many (%d%s) arguments\n' % (
                 self.filename, node.lineno, module_name, funcname, 
                 min_args, max_args, min_call_args, '+' if may_have_more else ''))
             sys.exit(1)
         elif min_call_args < min_args and not may_have_more:
-            sys.stderr.write('%s:%d: ERROR: builtin function "%s.%s" (%d..%d arguments) called with too few (%d%s) arguments\n' % (
+            sys.stderr.write('%s:%d: ERROR: function "%s.%s" (%d..%d arguments) called with too few (%d%s) arguments\n' % (
                 self.filename, node.lineno, module_name, funcname, 
                 min_args, max_args, min_call_args, '+' if may_have_more else ''))
             sys.exit(1)
