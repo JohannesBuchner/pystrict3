@@ -35,6 +35,7 @@ import importlib
 import builtins
 import distutils.sysconfig
 import os
+from collections import defaultdict
 
 
 def parse_builtin_signature(signature):
@@ -51,6 +52,7 @@ def parse_builtin_signature(signature):
     
     max_args = len(signature.parameters)
     return min_args, max_args
+
 
 def count_function_min_arguments(arguments):
     """ returns minimum number of arguments. """
@@ -198,6 +200,7 @@ for m in list(sys.builtin_module_names) + list(sys.modules.keys()):
     if not m.startswith('_'):
         BUILTIN_MODULES.append(m)
 
+
 class ModuleCallLister(ast.NodeVisitor):
     """Verifies all calls against call signatures in known_functions.
     Unknown functions are not verified."""
@@ -220,12 +223,34 @@ class ModuleCallLister(ast.NodeVisitor):
 
         self.used_module_names = {}
 
+    def visit_Import(self, node):
+        for alias in node.names:
+            if alias.asname is None:
+                self.used_module_names[alias.name] = alias.name
+                # print('+module: "%s"' % (alias.name))
+            else:
+                self.used_module_names[alias.asname] = alias.name
+                # print('+module: "%s"' % (alias.name))
+            self.load_module(alias.name)
+        self.generic_visit(node)
+
+    def visit_ImportFrom(self, node):
+        if node.level == 0:
+            for alias in node.names:
+                if alias.asname is None:
+                    self.used_module_names[alias.name] = node.module + '.' + alias.name
+                    # print('+module: %s' % (node.module + '.' + alias.name, alias.name))
+                else:
+                    self.used_module_names[alias.asname] = node.module + '.' + alias.name
+                    # print('+module: %s' % (node.module + '.' + alias.name, alias.asname))
+                self.load_module(node.module + '.' + alias.name)
+        self.generic_visit(node)
+
     # lazy load the needed module functions
-    KNOWN_CALLS = {}
+    KNOWN_CALLS = defaultdict(dict)
     KNOWN_MODULES = {}
 
     def load_module(self, module_name):
-
         # if this is a submodule, try to handle by importing the parent
         parts = module_name.split('.')
         parent_module = '.'.join(parts[:-1])
@@ -235,8 +260,7 @@ class ModuleCallLister(ast.NodeVisitor):
             if parent_mod is not None:
                 mod = getattr(parent_mod, parts[-1], None)
                 if mod is not None:
-                    if inspect.ismodule(mod):
-                        ModuleCallLister.KNOWN_MODULES[module_name] = mod
+                    ModuleCallLister.KNOWN_MODULES[module_name] = mod
                     return mod
                 del mod
         
@@ -254,41 +278,37 @@ class ModuleCallLister(ast.NodeVisitor):
                     print('skipping loading module "%s" outside standard lib' % module_name)
                     return
 
-        print('+loading module %s...' % module_name)
+        print('+loading module %s' % module_name)
         mod = importlib.import_module(module_name)
         ModuleCallLister.KNOWN_MODULES[module_name] = mod
         return mod
 
+    def get_function(self, module_name, funcname):
+        assert module_name in ModuleCallLister.KNOWN_MODULES
+
+        mod = ModuleCallLister.KNOWN_MODULES[module_name]
+        if funcname != "":
+            for level in funcname.split('.'):
+                subm = getattr(mod, level, None)
+                if subm is None:
+                    print('skipping unknown function "%s.%s"' % (module_name, level))
+                    return
+                else:
+                    del mod
+                    mod = subm
+        
+        return mod
+
     def lazy_load_call(self, module_name, funcname):
-        if ModuleCallLister.KNOWN_MODULES.get(module_name) is None:
-            print('skipping unknown module "%s"' % module_name)
-            return
-
-        if module_name not in ModuleCallLister.KNOWN_CALLS:
-            ModuleCallLister.KNOWN_CALLS[module_name] = {}
-
         functions = ModuleCallLister.KNOWN_CALLS[module_name]
         if funcname in functions:
             # use cached result
             return functions[funcname]
 
-        mod = ModuleCallLister.KNOWN_MODULES[module_name]
-        for level in funcname.split('.'):
-            subm = getattr(mod, level, None)
-            if subm is None:
-                print('skipping unknown function "%s.%s"' % (module_name, level))
-                return
-            else:
-                del mod
-                mod = subm
+        func = self.get_function(module_name, funcname)
         
-        func = mod
-        del mod
         if inspect.isbuiltin(func) or inspect.isfunction(func):
-            try:
-                min_args, max_args = parse_builtin_signature(inspect.signature(func))
-            except ValueError:
-                min_args, max_args = 0, -1
+            min_args, max_args = parse_builtin_signature(inspect.signature(func))
             print('+function: "%s.%s" (%d..%d) arguments' % (module_name, funcname, min_args, max_args))
         elif inspect.isclass(func):
             min_args, max_args = parse_builtin_signature(inspect.signature(func.__init__))
@@ -298,74 +318,57 @@ class ModuleCallLister(ast.NodeVisitor):
             min_args -= 1
             print('+class: "%s.%s" (%d..%d) arguments' % (module_name, funcname, min_args, max_args))
         elif hasattr(func, '__call__'):
-            try:
-                min_args, max_args = parse_builtin_signature(inspect.signature(func))
-            except ValueError:
-                min_args, max_args = 0, -1
-            print('+callable: "%s.%s" (%d..%d) arguments' % (module_name, funcname, min_args, max_args))
+            # some type we do not understand, like numpy ufuncs
+            min_args, max_args = 0, -1
+            print('+uninspectable callable: "%s.%s"' % (module_name, funcname))
         else:
+            # not callable
             return
 
         functions[funcname] = min_args, max_args
         return min_args, max_args
 
-    def visit_Import(self, node):
-        for alias in node.names:
-            if alias.asname is None:
-                self.used_module_names[alias.name] = alias.name
-                #print('+module: "%s"' % (alias.name))
-            else:
-                self.used_module_names[alias.asname] = alias.name
-                #print('+module: "%s"' % (alias.name))
-            self.load_module(alias.name)
-        self.generic_visit(node)
-
-    def visit_ImportFrom(self, node):
-        if node.level == 0:
-            for alias in node.names:
-                if alias.asname is None:
-                    self.used_module_names[alias.name] = node.module + '.' + alias.name
-                    #print('+module: %s' % (node.module + '.' + alias.name))
-                else:
-                    self.used_module_names[alias.asname] = node.module + '.' + alias.name
-                    #print('+module: %s' % (node.module + '.' + alias.name))
-                self.load_module(node.module + '.' + alias.name)
-        self.generic_visit(node)
-
-
     def visit_Call(self, node):
         self.generic_visit(node)
-        if not isinstance(node.func, ast.Attribute):
+        if isinstance(node.func, ast.Name):
+            funcname = ''
+            module_alias = node.func.id
+            module_name = self.used_module_names.get(module_alias)
+        elif not isinstance(node.func, ast.Attribute):
             # print("skipping call: not an attribute")
             return
-        if isinstance(node.func.value, ast.Attribute) and isinstance(node.func.value.value, ast.Name):
+        elif isinstance(node.func.value, ast.Name):
+            funcname = node.func.attr
+            module_alias = node.func.value.id
+            module_name = self.used_module_names.get(module_alias)
+        elif isinstance(node.func.value, ast.Attribute) and isinstance(node.func.value.value, ast.Name):
             module_alias = node.func.value.value.id + '.' + node.func.value.attr
             funcname = node.func.attr
             module_name = self.used_module_names.get(module_alias)
             if module_name is None and node.func.value.value.id in self.used_module_names:
                 module_name = self.used_module_names.get(node.func.value.value.id)
                 funcname = node.func.value.attr + '.' + node.func.attr
-        elif isinstance(node.func.value, ast.Name):
-            funcname = node.func.attr
-            module_alias = node.func.value.id
-            module_name = self.used_module_names.get(module_alias)
         else:
             # print("skipping call: not an 1 or 2-layer attribute: %s")
             return
 
-        if module_name is None:
-            # print('skipping module "%s", because not registered' % module_alias)
+        if module_name is None or module_name not in ModuleCallLister.KNOWN_MODULES:
+            print('skipping module "%s", because not registered' % module_alias)
             return
+
         del module_alias
-
-        if self.load_policy != 'all' and module_name not in self.approved_module_names or \
-                ModuleCallLister.KNOWN_MODULES.get(module_name) is None:
-            #print('skipping call into unknown module "%s"' % module_name)
+        if self.load_policy != 'all' and module_name not in self.approved_module_names:
+            print('skipping call into unapproved module "%s"' % module_name)
             return
 
+        if self.get_function(module_name, funcname) is None:
+            sys.stderr.write('%s:%d: ERROR: "%s.%s" is not in a known module\n' % (
+                self.filename, node.lineno, module_name, funcname))
+            sys.exit(1)
+            
         signature = self.lazy_load_call(module_name, funcname)
         if signature is None:
-            sys.stderr.write('%s:%d: ERROR: "%s.%s" unknown\n' % (
+            sys.stderr.write('%s:%d: ERROR: "%s.%s" is not a known function\n' % (
                 self.filename, node.lineno, module_name, funcname))
             sys.exit(1)
             return

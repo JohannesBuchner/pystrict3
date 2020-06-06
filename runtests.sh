@@ -1,7 +1,11 @@
 #!/bin/bash
+
 pystrict3="coverage run -a ./pystrict3.py --load-any-modules"
 
-rm -f .coverage
+coverage run ./pystrict3.py --help >/dev/null  || exit 0
+$pystrict3 --nonexistingoption >/dev/null
+retval=$?
+[ "$retval" -eq 2 ] || exit 2
 
 echo "expecting no errors:"
 for i in tests/examples-good/*.py
@@ -27,6 +31,20 @@ do
 	fi
 done
 
+echo "checking that a non-builtin module wrongly does not cause an error if not allowed to load it"
+coverage run -a ./pystrict3.py --load-builtin-modules tests/examples-bad/7.py > /dev/null || exit 1
+echo "checking that a non-builtin module wrongly does not cause an error if not allowed to load it"
+coverage run -a ./pystrict3.py tests/examples-bad/7.py > /dev/null || exit 1
+
+echo "checking that pytest misuse causes error"
+coverage run -a ./pystrict3.py --load-any-modules tests/examples-bad-external/7.py && exit 1
+
+echo "checking that a non-existing module does not cause an error"
+coverage run -a ./pystrict3.py --load-builtin-modules tests/examples-good-external/7.py > /dev/null || exit 1
+echo "checking that a non-existing module causes error"
+coverage run -a ./pystrict3.py --load-any-modules tests/examples-good-external/7.py > /dev/null 2>/dev/null && exit 1
+echo "checking numpy inspection"
+coverage run -a ./pystrict3.py --load-any-modules tests/examples-bad-external/13.py || exit 1
 
 echo "tests completed successfully."
 coverage html
