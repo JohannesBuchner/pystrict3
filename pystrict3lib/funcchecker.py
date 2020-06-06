@@ -314,7 +314,7 @@ class ModuleCallLister(ast.NodeVisitor):
                 min_args, max_args = parse_builtin_signature(inspect.signature(func))
                 print('+function: "%s.%s" (%d..%d) arguments' % (module_name, funcname, min_args, max_args))
             except ValueError:
-                min_args, max_args = -1, 1
+                min_args, max_args = 0, -1
                 print('+uninspectable callable: "%s.%s"' % (module_name, funcname))
         elif inspect.isclass(func):
             min_args, max_args = parse_builtin_signature(inspect.signature(func.__init__))
