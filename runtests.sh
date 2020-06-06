@@ -40,8 +40,8 @@ echo "checking that pytest misuse causes error"
 coverage run -a ./pystrict3.py --import-any tests/examples-bad-external/7.py && exit 1
 echo "checking that a non-existing module does not cause an error"
 coverage run -a ./pystrict3.py --import-builtin tests/examples-good-external/7.py || exit 1
-echo "checking that a non-existing module causes error"
-coverage run -a ./pystrict3.py --import-any tests/examples-good-external/7.py && exit 1
+echo "checking that a non-existing module does not cause an error"
+coverage run -a ./pystrict3.py --import-any tests/examples-good-external/7.py || exit 1
 
 echo "checking numpy inspection"
 coverage run -a ./pystrict3.py --import-any tests/examples-bad-external/13.py && exit 1
