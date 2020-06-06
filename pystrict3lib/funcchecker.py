@@ -260,7 +260,7 @@ class ModuleCallLister(ast.NodeVisitor):
         return mod
 
     def lazy_load_call(self, module_name, funcname):
-        if module_name not in ModuleCallLister.KNOWN_MODULES:
+        if ModuleCallLister.KNOWN_MODULES.get(module_name) is None:
             print('skipping unknown module "%s"' % module_name)
             return
 
@@ -276,7 +276,7 @@ class ModuleCallLister(ast.NodeVisitor):
         for level in funcname.split('.'):
             subm = getattr(mod, level, None)
             if subm is None:
-                print('skipping unknown function "%s.%s"' % (module_name, funcname))
+                print('skipping unknown function "%s.%s"' % (module_name, level))
                 return
             else:
                 del mod
@@ -358,10 +358,11 @@ class ModuleCallLister(ast.NodeVisitor):
             return
         del module_alias
 
-        if self.load_policy != 'all' and module_name not in self.approved_module_names:
+        if self.load_policy != 'all' and module_name not in self.approved_module_names or \
+                ModuleCallLister.KNOWN_MODULES.get(module_name) is None:
             #print('skipping call into unknown module "%s"' % module_name)
             return
-        
+
         signature = self.lazy_load_call(module_name, funcname)
         if signature is None:
             sys.stderr.write('%s:%d: ERROR: "%s.%s" unknown\n' % (
