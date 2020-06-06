@@ -67,13 +67,13 @@ def assert_unknown(name, known, node, filename):
             sys.stderr.write('%s:%d: ERROR: Overwriting builtin variable: "%s"\n' % (filename, node.lineno, name))
             sys.exit(1)
         elif name != '_':  # throwaway variable is allowed
-            sys.stderr.write('%s:%d: ERROR: Variable reuse: "%s"\n' % (filename, node.lineno, name))
+            sys.stderr.write('%s:%d: ERROR: Variable reuse: "%s", previously defined in line %d\n' % (filename, node.lineno, name, known[name]))
             sys.exit(1)
 
 
 def check_new_identifiers(known, node, filename):
     """add newly defined variables and verify that the accessed ones are defined in known"""
-    add_here = set()
+    add_here = {}
     forget_here = set()
     for el in flat_walk(node):
         # find all name nodes and look at ids
@@ -86,7 +86,7 @@ def check_new_identifiers(known, node, filename):
                     name = name.name
                 assert_unknown(name, known, node, filename)
                 name = name.split('.')[0]
-                add_here.add(name)
+                add_here[name] = el.lineno
             del name, names
         if hasattr(el, 'targets'):
             targets = el.targets
@@ -95,12 +95,12 @@ def check_new_identifiers(known, node, filename):
                     if isinstance(getattr(target, 'ctx'), ast.Del):
                         print("-%s" % id)
                         if id in add_here:
-                            add_here.remove(id)
+                            del add_here[id]
                         if id in known:
-                            known.remove(id)
+                            del known[id]
                     else:
                         assert_unknown(id, known, node, filename)
-                        add_here.add(id)
+                        add_here[id] = el.lineno
             del target, targets
         if hasattr(el, 'items'):
             items = el.items
@@ -111,24 +111,24 @@ def check_new_identifiers(known, node, filename):
                     names = item.optional_vars
                 for id in get_ids(names):
                     assert_unknown(id, known, node, filename)
-                    add_here.add(id)
+                    add_here[id] = el.lineno
                 del names
             del item, items
         if hasattr(el, 'target'):
             for id in get_ids(el.target):
-                add_here.add(id)
+                add_here[id] = node.lineno
         if hasattr(el, 'generators'):
             generators = el.generators
             for target in generators:
                 for id in get_ids(target):
                     assert_unknown(id, known, node, filename)
-                    add_here.add(id)
+                    add_here[id] = el.lineno
                     forget_here.add(id)
             del target, generators
         if hasattr(el, 'name'):
             if el.name is not None:
                 assert_unknown(el.name, known, node, filename)
-                add_here.add(el.name)
+                add_here[el.name] = el.lineno
         if not isinstance(getattr(el, 'ctx', None), ast.Del):
             for id in get_ids(el):
                 if id in known or id in add_here:
@@ -137,17 +137,17 @@ def check_new_identifiers(known, node, filename):
                     # this is in a construct for testing whether a variable exists
                     pass
                 else:
-                    sys.stderr.write('%s:%d: ERROR: Variable unknown: "%s"\n' % (filename, node.lineno, id))
+                    sys.stderr.write('%s:%d: ERROR: Variable unknown: "%s"\n' % (filename, el.lineno, id))
                     sys.exit(1)
 
-    for id in add_here:
+    for id, lineno in add_here.items():
         if id not in known:
             print('+%s' % id)
-            known.add(id)
+            known[id] = lineno
     for id in forget_here:
         if id in known:
             print('-%s' % id)
-            known.remove(id)
+            del known[id]
 
 
 def main(filenames, module_load_policy='none'):
@@ -171,7 +171,7 @@ def main(filenames, module_load_policy='none'):
         asts.append((filename, a))
 
     for filename, a in asts:
-        known = set(preknown)
+        known = {k: 'builtin' for k in preknown}
 
         print("%s: checking calls ..." % filename)
         CallLister(filename=filename, known_functions=known_functions).visit(a)
@@ -188,14 +188,14 @@ def main(filenames, module_load_policy='none'):
                     continue
                 
                 # add func argument names to known
-                known_with_args = set(known)
+                known_with_args = dict(**known)
                 arguments = func.args
-                known_with_args = known_with_args.union({arg.arg for arg in arguments.args})
-                known_with_args = known_with_args.union({arg.arg for arg in arguments.kwonlyargs})
+                known_with_args.update({arg.arg:func.lineno for arg in arguments.args})
+                known_with_args.update({arg.arg:func.lineno for arg in arguments.kwonlyargs})
                 if arguments.vararg is not None:
-                    known_with_args.add(arguments.vararg.arg)
+                    known_with_args[arguments.vararg.arg] = func.lineno
                 if arguments.kwarg is not None:
-                    known_with_args.add(arguments.kwarg.arg)
+                    known_with_args[arguments.kwarg.arg] = func.lineno
                 
                 for node in func.body:
                     check_new_identifiers(known_with_args, node, filename)
