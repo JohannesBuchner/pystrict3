@@ -7,14 +7,24 @@ echo "expecting no errors:"
 for i in tests/examples-good/*.py
 do
 	echo $i
-	$pystrict3 $i > /dev/null || exit 1
+	if ! $pystrict3 $i > /dev/null
+	then
+		echo "expected no error:"
+		$pystrict3 $i
+		exit 1
+	fi
 done
 
 echo "expecting errors for each:"
 for i in tests/examples-bad/*.py
 do
 	echo $i
-	$pystrict3 $i > /dev/null && exit 1
+	if $pystrict3 $i > /dev/null
+	then
+		echo "expected error:"
+		$pystrict3 $i
+		exit 1
+	fi
 done
 
 

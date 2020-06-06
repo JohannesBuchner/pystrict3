@@ -304,7 +304,6 @@ class ModuleCallLister(ast.NodeVisitor):
                 min_args, max_args = 0, -1
             print('+callable: "%s.%s" (%d..%d) arguments' % (module_name, funcname, min_args, max_args))
         else:
-            print('skipping unknown function type "%s.%s"' % (module_name, funcname))
             return
 
         functions[funcname] = min_args, max_args
@@ -365,8 +364,9 @@ class ModuleCallLister(ast.NodeVisitor):
         
         signature = self.lazy_load_call(module_name, funcname)
         if signature is None:
-            sys.stderr.write('%s:%d: builtin function "%s.%s" unknown\n' % (
+            sys.stderr.write('%s:%d: ERROR: "%s.%s" unknown\n' % (
                 self.filename, node.lineno, module_name, funcname))
+            sys.exit(1)
             return
 
         min_args, max_args = signature
