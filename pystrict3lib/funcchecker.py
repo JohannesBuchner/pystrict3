@@ -221,8 +221,8 @@ class ModuleCallLister(ast.NodeVisitor):
         if self.load_policy != 'none':
             self.approved_module_names |= {k for k in sys.builtin_module_names if not k.startswith('_')}
 
-        if self.load_policy != 'all':
-            print("allowed modules:", sorted(self.approved_module_names))
+        # if self.load_policy != 'all':
+        #     print("allowed modules:", sorted(self.approved_module_names))
         self.used_module_names = {}
 
     def visit_Import(self, node):
@@ -265,11 +265,11 @@ class ModuleCallLister(ast.NodeVisitor):
                     ModuleCallLister.KNOWN_MODULES[module_name] = mod
                     return mod
                 del mod
-        
+
         ModuleCallLister.KNOWN_MODULES[module_name] = None
-        if self.load_policy == 'none':
+        if self.load_policy != 'all' and module_name.split('.')[0] not in self.approved_module_names:
             return
-        
+
         if self.load_policy == 'builtins':
             if module_name.split('.')[0] not in self.approved_module_names:
                 std_lib = distutils.sysconfig.get_python_lib(standard_lib=True)
@@ -286,9 +286,9 @@ class ModuleCallLister(ast.NodeVisitor):
         return mod
 
     def get_function(self, module_name, funcname):
-        assert module_name in ModuleCallLister.KNOWN_MODULES
-
         mod = ModuleCallLister.KNOWN_MODULES[module_name]
+        assert mod is not None
+
         if funcname != "":
             for level in funcname.split('.'):
                 subm = getattr(mod, level, None)
@@ -310,8 +310,12 @@ class ModuleCallLister(ast.NodeVisitor):
         func = self.get_function(module_name, funcname)
         
         if inspect.isbuiltin(func) or inspect.isfunction(func):
-            min_args, max_args = parse_builtin_signature(inspect.signature(func))
-            print('+function: "%s.%s" (%d..%d) arguments' % (module_name, funcname, min_args, max_args))
+            try:
+                min_args, max_args = parse_builtin_signature(inspect.signature(func))
+                print('+function: "%s.%s" (%d..%d) arguments' % (module_name, funcname, min_args, max_args))
+            except ValueError:
+                min_args, max_args = -1, 1
+                print('+uninspectable callable: "%s.%s"' % (module_name, funcname))
         elif inspect.isclass(func):
             min_args, max_args = parse_builtin_signature(inspect.signature(func.__init__))
             # remove self from arguments, as it is supplied by Python
@@ -355,12 +359,16 @@ class ModuleCallLister(ast.NodeVisitor):
             return
 
         if module_name is None or module_name not in ModuleCallLister.KNOWN_MODULES:
-            print('skipping module "%s", because not registered' % module_alias)
+            #print('skipping module "%s", because not registered' % module_alias)
             return
 
         del module_alias
-        if self.load_policy != 'all' and module_name not in self.approved_module_names:
+        if self.load_policy in ('builtin', 'none') and module_name not in self.approved_module_names:
             print('skipping call into unapproved module "%s"' % module_name)
+            return
+
+        if ModuleCallLister.KNOWN_MODULES[module_name] is None:
+            print('skipping call into not loaded module "%s"' % module_name)
             return
 
         if self.get_function(module_name, funcname) is None:
