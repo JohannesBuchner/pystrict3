@@ -1,10 +1,10 @@
 indent = 3
-key = 0
-'\n%s%*s' % (indent, len(key)+3, '')  # ok: variable length
+key = "foo"
+print('\n%s%*s' % (indent, len(key)+3, 'Hello'))  # ok: variable length
 
-tmp = "%.*f" % (key, indent)
+print("%.*f" % (indent, 1.2345))
 def myprint(x, *args):
-	print("%.3f %.4f %10.3f %1.*f" % (x, x, x, key, 3))
+	print("%.3f %.4f %10.3f %1.*f" % (x, x, x, 3, x))
 
 myprint(3)
 

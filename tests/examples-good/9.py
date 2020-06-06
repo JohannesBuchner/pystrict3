@@ -3,5 +3,5 @@
 del __doc__
 __doc__ = """foo baz"""
 
-map(str.tolower, __builtins__) ## ok, builtin names
+map(str.lower, dir(__builtins__)) ## ok, builtin names
 

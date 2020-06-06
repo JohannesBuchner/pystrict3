@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+"""pystrict3: a Python code checker.
+
+Checks number of arguments in function, class init and method calls.
+Optionally also checks calls to imported modules.
+
+Checks that class attributes accessed are assigned somewhere.
+
+Checks that builtin names are not overwritten.
+
+Checks that variables are only assigned once.
+
+"""
+
 """
 BSD 2-Clause License
 
@@ -30,5 +43,30 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import sys
 import pystrict3lib
+import argparse
 
-pystrict3lib.main(sys.argv[1:])
+class HelpfulParser(argparse.ArgumentParser):
+	def error(self, message):
+		sys.stderr.write('error: %s\n' % message)
+		self.print_help()
+		sys.exit(2)
+
+if __name__ == '__main__':
+
+   parser = HelpfulParser(description=__doc__,
+      epilog="""Johannes Buchner (C) 2020 <johannes.buchner.acad@gmx.com>""",
+      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+   parser.add_argument('--load-builtin-modules', action='store_true',
+      help="""Also load builtin python modules to check function signatures.""")
+
+   parser.add_argument('--load-any-modules', action='store_true',
+      help="""Also load any modules specified in import statements to check function signatures.
+   Warning: can execute arbitrary module code.""")
+
+   parser.add_argument('filenames', type=str, nargs='+', help="""python files to parse""")
+
+   args = parser.parse_args()
+
+   module_load_policy = 'all' if args.load_any_modules else 'builtins' if args.load_builtin_modules else 'none'
+   pystrict3lib.main(args.filenames, module_load_policy)

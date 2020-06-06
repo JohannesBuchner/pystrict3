@@ -26,11 +26,13 @@ class FooMany():
 foo = FooMany("Hello!")
 
 class FooBar(FooMany):
-	def foo(self):
+	def baz(self):
 		print(self.unknown)  ## OK, not checking derived classes
 
-class FooBaz(FooMany, FooBar):
-	def foo(self):
+noop = lambda x: x
+@noop
+class FooBaz():
+	def blah(self):
 		print(self.unknown)  ## OK, not checking complex classes
 
 FooMany.permanent()

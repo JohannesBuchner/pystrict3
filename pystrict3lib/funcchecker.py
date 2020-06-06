@@ -33,6 +33,8 @@ import sys
 import inspect
 import importlib
 import builtins
+import distutils.sysconfig
+import os
 
 
 def parse_builtin_signature(signature):
@@ -95,7 +97,7 @@ class FuncLister(ast.NodeVisitor):
         self.filename = filename
         self.known_functions = dict(**FuncLister.KNOWN_BUILTIN_FUNCTIONS)
         self.known_staticmethods = {}
-    
+
     KNOWN_BUILTIN_FUNCTIONS = {}
     
     @staticmethod
@@ -157,6 +159,7 @@ class FuncLister(ast.NodeVisitor):
                     min_args -= 1
                     self.known_functions[node.name] = (min_args, max_args)
                     print('class "%s" init has %d..%d arguments' % (node.name, min_args, max_args))
+
         self.generic_visit(node)
 
 
@@ -191,43 +194,145 @@ class CallLister(ast.NodeVisitor):
 
 
 BUILTIN_MODULES = []
-for m in sys.builtin_module_names:
+for m in list(sys.builtin_module_names) + list(sys.modules.keys()):
     if not m.startswith('_'):
         BUILTIN_MODULES.append(m)
 
-class BuiltinCallLister(ast.NodeVisitor):
+class ModuleCallLister(ast.NodeVisitor):
     """Verifies all calls against call signatures in known_functions.
     Unknown functions are not verified."""
 
-    # lazy load the needed builtin modules
-    KNOWN_BUILTINS = {}
+    def __init__(self, filename, load_policy='none'):
+        """ If load_policy is 'none', do not load any new modules.
+        if load_policy is 'builtins', load python libraries from the python 
+        standard library path.
+        if load_policy is 'all', try to load arbitrary python libraries."""
 
-    @staticmethod
-    def load_builtin_module(module_name):
-        if module_name in BuiltinCallLister.KNOWN_BUILTINS:
+        self.filename = filename
+
+        if load_policy not in ('none', 'builtins', 'all'):
+            raise ValueError("load_policy needs to be one of ('none', 'builtins', 'all'), not '%s'" % load_policy)
+        self.load_policy = load_policy
+        self.approved_module_names = set(sys.modules.keys())
+
+        if self.load_policy == 'builtins':
+            self.approved_module_names |= set(sys.builtin_module_names)
+
+        self.used_module_names = {}
+
+    # lazy load the needed module functions
+    KNOWN_CALLS = {}
+    KNOWN_MODULES = {}
+
+    def load_module(self, module_name):
+
+        # if this is a submodule, try to handle by importing the parent
+        parts = module_name.split('.')
+        parent_module = '.'.join(parts[:-1])
+        if parent_module != '':
+            self.load_module(parent_module)
+            parent_mod = ModuleCallLister.KNOWN_MODULES.get(parent_module)
+            if parent_mod is not None:
+                mod = getattr(parent_mod, parts[-1], None)
+                if mod is not None:
+                    if inspect.ismodule(mod):
+                        ModuleCallLister.KNOWN_MODULES[module_name] = mod
+                    return mod
+                del mod
+        
+        ModuleCallLister.KNOWN_MODULES[module_name] = None
+        if self.load_policy == 'none':
+            return
+        
+        if self.load_policy == 'builtins':
+            if module_name.split('.')[0] not in self.approved_module_names:
+                std_lib = distutils.sysconfig.get_python_lib(standard_lib=True)
+                loadable_std_file = os.path.exists(os.path.join(std_lib, module_name.split('.')[0] + '.py'))
+                loadable_std_dir = os.path.exists(os.path.join(std_lib, module_name.split('.')[0], '__init__.py'))
+                if not loadable_std_file and not loadable_std_dir:
+                    # do not load arbitrary modules
+                    print('skipping loading module "%s" outside standard lib' % module_name)
+                    return
+
+        print('+loading module %s...' % module_name)
+        mod = importlib.import_module(module_name)
+        ModuleCallLister.KNOWN_MODULES[module_name] = mod
+        return mod
+
+    def lazy_load_call(self, module_name, funcname):
+        if module_name not in ModuleCallLister.KNOWN_MODULES:
+            print('skipping unknown module "%s"' % module_name)
             return
 
-        print('analysing builtin module "%s"' % module_name)
-        mod = importlib.import_module(module_name)
-        functions = {}
-        for f in dir(mod):
-            func = getattr(mod, f)
-            if inspect.isbuiltin(func) or inspect.isfunction(func):
-                try:
-                    functions[f] = parse_builtin_signature(inspect.signature(func))
-                except ValueError:
-                    functions[f] = 0, -1
-                # print('+builtin: "%s.%s"' % (module_name, f), functions[f])
-        BuiltinCallLister.KNOWN_BUILTINS[module_name] = functions
+        if module_name not in ModuleCallLister.KNOWN_CALLS:
+            ModuleCallLister.KNOWN_CALLS[module_name] = {}
 
-    def __init__(self, filename):
-        self.filename = filename
+        functions = ModuleCallLister.KNOWN_CALLS[module_name]
+        if funcname in functions:
+            # use cached result
+            return functions[funcname]
+
+        mod = ModuleCallLister.KNOWN_MODULES[module_name]
+        for level in funcname.split('.'):
+            subm = getattr(mod, level, None)
+            if subm is None:
+                print('skipping unknown function "%s.%s"' % (module_name, funcname))
+                return
+            else:
+                del mod
+                mod = subm
+        
+        func = mod
+        del mod
+        if inspect.isbuiltin(func) or inspect.isfunction(func):
+            try:
+                min_args, max_args = parse_builtin_signature(inspect.signature(func))
+            except ValueError:
+                min_args, max_args = 0, -1
+            print('+function: "%s.%s" (%d..%d) arguments' % (module_name, funcname, min_args, max_args))
+        elif inspect.isclass(func):
+            min_args, max_args = parse_builtin_signature(inspect.signature(func.__init__))
+            # remove self from arguments, as it is supplied by Python
+            if max_args > 0:
+                max_args -= 1
+            min_args -= 1
+            print('+class: "%s.%s" (%d..%d) arguments' % (module_name, funcname, min_args, max_args))
+        elif hasattr(func, '__call__'):
+            try:
+                min_args, max_args = parse_builtin_signature(inspect.signature(func))
+            except ValueError:
+                min_args, max_args = 0, -1
+            print('+callable: "%s.%s" (%d..%d) arguments' % (module_name, funcname, min_args, max_args))
+        else:
+            print('skipping unknown function type "%s.%s"' % (module_name, funcname))
+            return
+
+        functions[funcname] = min_args, max_args
+        return min_args, max_args
 
     def visit_Import(self, node):
         for alias in node.names:
             if alias.asname is None:
-                BuiltinCallLister.load_builtin_module(alias.name)
+                self.used_module_names[alias.name] = alias.name
+                #print('+module: "%s"' % (alias.name))
+            else:
+                self.used_module_names[alias.asname] = alias.name
+                #print('+module: "%s"' % (alias.name))
+            self.load_module(alias.name)
         self.generic_visit(node)
+
+    def visit_ImportFrom(self, node):
+        if node.level == 0:
+            for alias in node.names:
+                if alias.asname is None:
+                    self.used_module_names[alias.name] = node.module + '.' + alias.name
+                    #print('+module: %s' % (node.module + '.' + alias.name))
+                else:
+                    self.used_module_names[alias.asname] = node.module + '.' + alias.name
+                    #print('+module: %s' % (node.module + '.' + alias.name))
+                self.load_module(node.module + '.' + alias.name)
+        self.generic_visit(node)
+
 
     def visit_Call(self, node):
         self.generic_visit(node)
@@ -235,26 +340,36 @@ class BuiltinCallLister(ast.NodeVisitor):
             # print("skipping call: not an attribute")
             return
         if isinstance(node.func.value, ast.Attribute) and isinstance(node.func.value.value, ast.Name):
-            module_name = node.func.value.value.id + '.' + node.func.value.attr
+            module_alias = node.func.value.value.id + '.' + node.func.value.attr
             funcname = node.func.attr
+            module_name = self.used_module_names.get(module_alias)
+            if module_name is None and node.func.value.value.id in self.used_module_names:
+                module_name = self.used_module_names.get(node.func.value.value.id)
+                funcname = node.func.value.attr + '.' + node.func.attr
         elif isinstance(node.func.value, ast.Name):
             funcname = node.func.attr
-            module_name = node.func.value.id
+            module_alias = node.func.value.id
+            module_name = self.used_module_names.get(module_alias)
         else:
             # print("skipping call: not an 1 or 2-layer attribute: %s")
             return
 
-        if module_name not in BuiltinCallLister.KNOWN_BUILTINS:
-            print('skipping call into unknown module "%s"' % module_name)
+        if module_name is None:
+            # print('skipping module "%s", because not registered' % module_alias)
+            return
+        del module_alias
+
+        if self.load_policy != 'all' and module_name not in self.approved_module_names:
+            #print('skipping call into unknown module "%s"' % module_name)
+            return
+        
+        signature = self.lazy_load_call(module_name, funcname)
+        if signature is None:
+            sys.stderr.write('%s:%d: builtin function "%s.%s" unknown\n' % (
+                self.filename, node.lineno, module_name, funcname))
             return
 
-        functions = BuiltinCallLister.KNOWN_BUILTINS[module_name]
-        if funcname not in functions:
-            sys.stderr.write('%s:%d: ERROR: builtin function "%s.%s" unknown\n' % (
-                self.filename, node.lineno, module_name, funcname))
-            sys.exit(1)
-
-        min_args, max_args = functions[funcname]
+        min_args, max_args = signature
         min_call_args, may_have_more = count_call_arguments(node)
 
         if max_args >= 0 and min_call_args > max_args:
@@ -268,4 +383,4 @@ class BuiltinCallLister(ast.NodeVisitor):
                 min_args, max_args, min_call_args, '+' if may_have_more else ''))
             sys.exit(1)
         else:
-            print("call(%s with %d%s args): OK" % (funcname, min_call_args, '+' if may_have_more else ''))
+            print('call(%s.%s with %d%s args): OK' % (module_name, funcname, min_call_args, '+' if may_have_more else ''))

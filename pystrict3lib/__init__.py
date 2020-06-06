@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import ast
 import sys
 import builtins
-from .funcchecker import FuncLister, CallLister, BuiltinCallLister
+from .funcchecker import FuncLister, CallLister, ModuleCallLister
 from .classchecker import ClassPropertiesLister
 
 preknown = set(builtins.__dict__).union({'__doc__', '__file__', '__name__', '__annotations__', '__dict__', '__builtins__'})
@@ -66,7 +66,7 @@ def assert_unknown(name, known, node, filename):
         if name in preknown:
             sys.stderr.write('%s:%d: ERROR: Overwriting builtin variable: "%s"\n' % (filename, node.lineno, name))
             sys.exit(1)
-        else:
+        elif name != '_':  # throwaway variable is allowed
             sys.stderr.write('%s:%d: ERROR: Variable reuse: "%s"\n' % (filename, node.lineno, name))
             sys.exit(1)
 
@@ -133,7 +133,11 @@ def check_new_identifiers(known, node, filename):
             for id in get_ids(el):
                 if id in known or id in add_here:
                     pass
+                elif isinstance(node, ast.Try) and any(isinstance(handler.type, ast.Name) and handler.type.id == 'NameError' for handler in node.handlers if isinstance(handler, ast.ExceptHandler)):
+                    # this is in a construct for testing whether a variable exists
+                    pass
                 else:
+                    import pprintast; pprintast.pprintast(node)
                     sys.stderr.write('%s:%d: ERROR: Variable unknown: "%s"\n' % (filename, node.lineno, id))
                     sys.exit(1)
 
@@ -147,7 +151,7 @@ def check_new_identifiers(known, node, filename):
             known.remove(id)
 
 
-def main(filenames):
+def main(filenames, module_load_policy='none'):
     """ Verify python files listed in filenames """
     known_functions = dict()
     FuncLister.load_builtin_functions()
@@ -159,7 +163,7 @@ def main(filenames):
         print("%s: checking class usage ..." % filename)
         ClassPropertiesLister(filename=filename).visit(a)
         print("%s: checking internals usage ..." % filename)
-        BuiltinCallLister(filename=filename).visit(a)
+        ModuleCallLister(filename=filename, load_policy=module_load_policy).visit(a)
         
         funcs = FuncLister(filename=filename)
         funcs.visit(a)
