@@ -1,5 +1,5 @@
 #!/bin/bash
-pystrict3="coverage run -a ./pystrict3.py --load-builtin-modules"
+pystrict3="coverage run -a ./pystrict3.py --load-any-modules"
 
 rm -f .coverage
 

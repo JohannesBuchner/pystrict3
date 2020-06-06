@@ -27,7 +27,7 @@ def main():
 		def optimize(x, y):
 			return bar(0, 2)
 		return optimize(0,0)
-		_html.parse(_requests.request())
+		_html.escape(_requests.get("http://example.org"))
 
 	def bar(a, b=3):
 		c = a + b
