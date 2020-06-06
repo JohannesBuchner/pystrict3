@@ -216,11 +216,13 @@ class ModuleCallLister(ast.NodeVisitor):
         if load_policy not in ('none', 'builtins', 'all'):
             raise ValueError("load_policy needs to be one of ('none', 'builtins', 'all'), not '%s'" % load_policy)
         self.load_policy = load_policy
-        self.approved_module_names = set(sys.modules.keys())
+        self.approved_module_names = {k for k in sys.modules.keys() if not k.startswith('_')}
 
-        if self.load_policy == 'builtins':
-            self.approved_module_names |= set(sys.builtin_module_names)
+        if self.load_policy != 'none':
+            self.approved_module_names |= {k for k in sys.builtin_module_names if not k.startswith('_')}
 
+        if self.load_policy != 'all':
+            print("allowed modules:", self.approved_module_names)
         self.used_module_names = {}
 
     def visit_Import(self, node):

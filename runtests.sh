@@ -19,6 +19,7 @@ do
 	fi
 done
 
+echo
 echo "expecting errors for each:"
 for i in tests/examples-bad/*.py
 do
@@ -31,9 +32,10 @@ do
 	fi
 done
 
-echo "checking that a non-builtin module wrongly does not cause an error if not allowed to load it"
+echo
+echo "using a non-builtin module wrongly should not cause an error if not allowed to load it..."
 coverage run -a ./pystrict3.py --load-builtin-modules tests/examples-bad/7.py > /dev/null || exit 1
-echo "checking that a non-builtin module wrongly does not cause an error if not allowed to load it"
+echo "using a non-builtin module wrongly should not cause an error if not allowed to load it..."
 coverage run -a ./pystrict3.py tests/examples-bad/7.py > /dev/null || exit 1
 
 echo "checking that pytest misuse causes error"

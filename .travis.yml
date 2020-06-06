@@ -5,7 +5,7 @@ python:
   - "3.8"
 
 install:
-  - pip install coveralls pyparsing
+  - pip install coveralls numpy
   - python setup.py install
 
 script:
