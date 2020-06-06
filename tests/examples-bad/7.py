@@ -1,3 +1,3 @@
-import string
+import itertools
 
-print([string.trim(s) for s in 'a, b and C'.split()])  ## error, does not exist
+print([itertools.fancycount(s) for s in 'a, b and C'.split()])  ## error, does not exist

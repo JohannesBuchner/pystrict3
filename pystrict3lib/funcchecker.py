@@ -222,7 +222,7 @@ class ModuleCallLister(ast.NodeVisitor):
             self.approved_module_names |= {k for k in sys.builtin_module_names if not k.startswith('_')}
 
         if self.load_policy != 'all':
-            print("allowed modules:", self.approved_module_names)
+            print("allowed modules:", sorted(self.approved_module_names))
         self.used_module_names = {}
 
     def visit_Import(self, node):
