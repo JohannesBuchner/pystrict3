@@ -61,10 +61,9 @@ when call signatures change to include an additional argument::
     bar(1, 2, 3)     ## error: wrong number of arguments
     
     # builtin module signatures are verified too:
-    
-    import os, cmath
-    os.mkdir("foo", "bar") ## error: wrong number of arguments
-    cmath.exp()            ## error: wrong number of arguments
+    import os, numpy
+    os.mkdir("foo", "bar") ## error: wrong number of arguments (if run with --load-builtin-modules)
+    numpy.exp()            ## error: wrong number of arguments (if run with --load-any-modules)
 
 
 pystrict3 checks that classes are instanciated with the right number of arguments,
@@ -126,9 +125,19 @@ Usage
 Run with::
 
     $ python3 pystrict3.py <filenames>
+    $ python3 pystrict3.py --load-builtin-modules <filenames>
+    $ python3 pystrict3.py --load-any-modules <filenames>
 
 Running with multiple filenames has the benefit that all
 function signatures are first recorded and verified across all files.
+
+Running with `--load-builtin-modules` checks function calls to builtin
+modules.
+
+Running with `--load-any-modules` checks function calls to any modules,
+but this requires pystrict3 to import them, potentially running arbitrary
+module code.
+
 
 Example stderr outputs::
 
