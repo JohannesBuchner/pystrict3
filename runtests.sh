@@ -44,7 +44,7 @@ coverage run -a ./pystrict3.py --load-builtin-modules tests/examples-good-extern
 echo "checking that a non-existing module causes error"
 coverage run -a ./pystrict3.py --load-any-modules tests/examples-good-external/7.py > /dev/null 2>/dev/null && exit 1
 echo "checking numpy inspection"
-coverage run -a ./pystrict3.py --load-any-modules tests/examples-bad-external/13.py || exit 1
+coverage run -a ./pystrict3.py --load-any-modules tests/examples-bad-external/13.py && exit 1
 
 echo "tests completed successfully."
 coverage html

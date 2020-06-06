@@ -14,4 +14,5 @@ os.path.exists("foo")
 file_is_there("bar")
 file_is_there("baz")
 
-numpy.exp([123])
+numpy.exp([numpy.pi])
+
