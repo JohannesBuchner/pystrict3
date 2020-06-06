@@ -1,6 +1,6 @@
 #!/bin/bash
 
-pystrict3="coverage run -a ./pystrict3.py --load-any-modules"
+pystrict3="coverage run -a ./pystrict3.py --import-any"
 
 coverage run ./pystrict3.py --help >/dev/null  || exit 0
 $pystrict3 --nonexistingoption >/dev/null
@@ -37,16 +37,16 @@ echo "using a builtin module correctly should not cause an error if not allowed 
 coverage run -a ./pystrict3.py tests/examples-good/14.py || exit 1
 
 echo "checking that pytest misuse causes error"
-coverage run -a ./pystrict3.py --load-any-modules tests/examples-bad-external/7.py && exit 1
+coverage run -a ./pystrict3.py --import-any tests/examples-bad-external/7.py && exit 1
 echo "checking that a non-existing module does not cause an error"
-coverage run -a ./pystrict3.py --load-builtin-modules tests/examples-good-external/7.py || exit 1
+coverage run -a ./pystrict3.py --import-builtin tests/examples-good-external/7.py || exit 1
 echo "checking that a non-existing module causes error"
-coverage run -a ./pystrict3.py --load-any-modules tests/examples-good-external/7.py && exit 1
+coverage run -a ./pystrict3.py --import-any tests/examples-good-external/7.py && exit 1
 
 echo "checking numpy inspection"
-coverage run -a ./pystrict3.py --load-any-modules tests/examples-bad-external/13.py && exit 1
+coverage run -a ./pystrict3.py --import-any tests/examples-bad-external/13.py && exit 1
 echo "using a non-builtin module wrongly should not cause an error if not allowed to load it..."
-coverage run -a ./pystrict3.py --load-builtin-modules tests/examples-bad-external/13.py || exit 1
+coverage run -a ./pystrict3.py --import-builtin tests/examples-bad-external/13.py || exit 1
 echo "using a non-builtin module wrongly should not cause an error if not allowed to load it..."
 coverage run -a ./pystrict3.py tests/examples-bad-external/13.py || exit 1
 

@@ -125,16 +125,16 @@ Usage
 Run with::
 
     $ python3 pystrict3.py <filenames>
-    $ python3 pystrict3.py --load-builtin-modules <filenames>
-    $ python3 pystrict3.py --load-any-modules <filenames>
+    $ python3 pystrict3.py --import-builtin <filenames>
+    $ python3 pystrict3.py --import-any <filenames>
 
 Running with multiple filenames has the benefit that all
 function signatures are first recorded and verified across all files.
 
-Running with `--load-builtin-modules` checks function calls to builtin
+Running with `--import-builtin` checks function calls to builtin
 modules.
 
-Running with `--load-any-modules` checks function calls to any modules,
+Running with `--import-any` checks function calls to any modules,
 but this requires pystrict3 to import them, potentially running arbitrary
 module code.
 
