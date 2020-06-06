@@ -46,10 +46,10 @@ import pystrict3lib
 import argparse
 
 class HelpfulParser(argparse.ArgumentParser):
-	def error(self, message):
-		sys.stderr.write('error: %s\n' % message)
-		self.print_help()
-		sys.exit(2)
+   def error(self, message):
+      sys.stderr.write('error: %s\n' % message)
+      self.print_help()
+      sys.exit(2)
 
 if __name__ == '__main__':
 
