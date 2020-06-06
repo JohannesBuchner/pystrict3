@@ -137,7 +137,6 @@ def check_new_identifiers(known, node, filename):
                     # this is in a construct for testing whether a variable exists
                     pass
                 else:
-                    import pprintast; pprintast.pprintast(node)
                     sys.stderr.write('%s:%d: ERROR: Variable unknown: "%s"\n' % (filename, node.lineno, id))
                     sys.exit(1)
 
