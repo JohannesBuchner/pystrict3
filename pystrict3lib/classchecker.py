@@ -89,7 +89,7 @@ class ClassPropertiesLister(ast.NodeVisitor):
         # skip subclasses metaclasses and other fancy things
         derived_class = len(node.bases) > 1 \
             or len(node.bases) > 0 and not (len(node.bases) == 1 and isinstance(node.bases[0], ast.Name) and node.bases[0].id == 'object') \
-            or len(node.keywords) > 0
+            or len(node.keywords) > 0 or len(node.decorator_list) > 0
         # standalone class
         
         # collect all members
