@@ -70,12 +70,22 @@ def assert_unknown(name, known, node, filename):
             sys.stderr.write('%s:%d: ERROR: Variable reuse: "%s", previously defined in line %d\n' % (filename, node.lineno, name, known[name]))
             sys.exit(1)
 
+def block_terminates(statements):
+    for statement in statements:
+        if isinstance(statement, ast.Return):
+            return True
+        if isinstance(statement, ast.Expr) and isinstance(statement.value, ast.Call) and isinstance(statement.value.func, ast.Attribute) and isinstance(statement.value.func.value, ast.Name):
+            if statement.value.func.value.id == 'sys' and statement.value.func.attr == 'exit':
+                return True
+    return False
 
 def check_new_identifiers(known, node, filename):
     """add newly defined variables and verify that the accessed ones are defined in known"""
-    add_here = {}
-    forget_here = set()
+    add = {}
+    forget = set()
     for el in flat_walk(node):
+        add_here = {}
+        forget_here = set()
         # find all name nodes and look at ids
         if hasattr(el, 'names'):
             names = el.names
@@ -94,6 +104,8 @@ def check_new_identifiers(known, node, filename):
                 for id in get_ids(target):
                     if isinstance(getattr(target, 'ctx'), ast.Del):
                         print("-%s" % id)
+                        if id in add:
+                            del add[id]
                         if id in add_here:
                             del add_here[id]
                         if id in known:
@@ -131,7 +143,7 @@ def check_new_identifiers(known, node, filename):
                 add_here[el.name] = el.lineno
         if not isinstance(getattr(el, 'ctx', None), ast.Del):
             for id in get_ids(el):
-                if id in known or id in add_here:
+                if id in known or id in add or id in add_here:
                     pass
                 elif isinstance(node, ast.Try) and any(isinstance(handler.type, ast.Name) and handler.type.id == 'NameError' for handler in node.handlers if isinstance(handler, ast.ExceptHandler)):
                     # this is in a construct for testing whether a variable exists
@@ -140,11 +152,17 @@ def check_new_identifiers(known, node, filename):
                     sys.stderr.write('%s:%d: ERROR: Variable unknown: "%s"\n' % (filename, el.lineno, id))
                     sys.exit(1)
 
-    for id, lineno in add_here.items():
+        terminating_here = hasattr(el, 'body') and block_terminates(el.body)
+        if not terminating_here:
+            add.update(add_here)
+            forget |= forget_here
+        del forget_here, add_here
+    
+    for id, lineno in add.items():
         if id not in known:
             print('+%s' % id)
             known[id] = lineno
-    for id in forget_here:
+    for id in forget:
         if id in known:
             print('-%s' % id)
             del known[id]
