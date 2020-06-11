@@ -21,9 +21,10 @@ Foo0()
 class FooOne():
 	def __init__(self, a):
 		self.a = a
-	def foo(self):
+	def myfunc(self):
 		print(self.a)
 
 
 print(FooOne(123).a)
+FooOne(123).myfunc()
 
