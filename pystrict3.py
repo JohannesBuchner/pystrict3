@@ -58,7 +58,7 @@ if __name__ == '__main__':
 
     parser = HelpfulParser(
         description=__doc__,
-        epilog="""Johannes Buchner (C) 2020 <johannes.buchner.acad@gmx.com>""",
+        epilog="""Johannes Buchner (C) 2020-2022 <johannes.buchner.acad@gmx.com>""",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument(

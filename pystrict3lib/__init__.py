@@ -236,10 +236,10 @@ class NameAssignVerifier():
             elif previous_state is not None and previous_state == True:
                 self.found_variable_reused |= True
                 if self.allow_variable_reuse:
-                    sys.stderr.write('%s:%d: ERROR: Variable "%s" set previously defined in line %d, is redefined here\n' % (
+                    sys.stderr.write('%s:%d: WARNING: Variable "%s" set previously in line %d may have changed meaning\n' % (
                         self.filename, lineno, name, known[name][1]))
                 else:
-                    sys.stderr.write('%s:%d: WARNING: Variable "%s" set previously in line %d may have changed meaning\n' % (
+                    sys.stderr.write('%s:%d: ERROR: Variable "%s" set previously defined in line %d, is redefined here\n' % (
                         self.filename, lineno, name, known[name][1]))
                     raise Exception(name)
 
