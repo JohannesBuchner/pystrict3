@@ -171,7 +171,7 @@ class NameAssignVerifier():
                 pass
             elif previous_state is not None and previous_state == True:
                 self.found_variable_reused |= True
-                if allow_variable_reuse:
+                if self.allow_variable_reuse:
                     sys.stderr.write('%s:%d: ERROR: Variable "%s" set previously defined in line %d, is redefined here\n' % (
                         self.filename, lineno, name, known[name][1]))
                 else:
@@ -463,15 +463,15 @@ def main(filenames, module_load_policy='none', allow_variable_reuse=False):
         nameassigner = NameAssignVerifier(filename, allow_variable_reuse=allow_variable_reuse)
         nameassigner.walk_tree(a.body, known)
         if nameassigner.found_variable_unknown:
-            sys.exit(1)
-        if nameassigner.found_variable_reused:
-            sys.exit(1)
+            sys.exit(2)
+        if nameassigner.found_variable_reused and not allow_variable_reuse:
+            sys.exit(3)
         if nameassigner.found_builtin_overwritten:
-            sys.exit(1)
+            sys.exit(4)
         print("%s: checking docstrings ..." % filename)
         funcdocs = FuncDocChecker(filename=filename)
         funcdocs.visit(a)
         if funcdocs.undocumented_parameters_found:
-            sys.exit(1)
+            sys.exit(5)
 
     print("pystrict3: OK")

@@ -115,9 +115,7 @@ def list_documented_parameters(docstring):
     params = []
     if '\n' not in docstring:
         return params
-    print("looking at:", docstring)
     docstring_lstripped = strip_left_indent('\n'.join(docstring.split('\n')[1:]))
-    print("looking at:", docstring_lstripped)
     for section_start, section_end in [
         ('\nParameters\n---------', '\n---'),
         ('\nOther Parameters\n---------', '\n---'),
@@ -132,10 +130,7 @@ def list_documented_parameters(docstring):
             parameter_section = strip_left_indent(docstring_lstripped[index_param_section:index_next_section])
             for line in parameter_section.split('\n'):
                 if not line.startswith(' ') and not line.startswith('\t') and ':' in line:
-                    print("found parameter line:", line, "in section:", parameter_section)
                     params.append(line.split(':')[0].strip())
-            else:
-                print("nothing found in section:", parameter_section)
     for line in docstring.split('\n'):
         if ':param' in line:
             params.append(line.split(':param')[1].split(':')[0])
