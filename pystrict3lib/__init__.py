@@ -470,7 +470,6 @@ class NameAssignVerifier():
             else:
                 for arg in getattr(node, 'args', []) + getattr(node, 'keywords', []):
                     for name in get_all_ids(arg):
-                        print([(k, v) for k,v in known_nodes.items() if v[1] != 'builtin'])
                         # state may be unclear, in which case we should not perform the check
                         if name not in known_nodes or known_nodes[name][0] not in (True, None):
                             self.variable_unknown_found(node.lineno, name)
