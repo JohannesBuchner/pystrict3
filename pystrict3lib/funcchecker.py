@@ -89,6 +89,81 @@ def count_call_arguments(call):
         min_call_args += 1
     return min_call_args, may_have_more
 
+def strip_left_indent(s):
+    body_lines = s.split('\n')
+    filled_lines = [line for line in body_lines if line.strip() != '']
+    left_padding_to_remove = min(len(line) - len(line.lstrip()) for line in filled_lines)
+    print("will remove:", left_padding_to_remove)
+    return '\n'.join(['' if line.strip() == '' else line[left_padding_to_remove:] for line in body_lines])
+    
+
+def list_documented_parameters(docstring):
+    """Extract a list of documented parameters from docstring
+
+    support numpydoc-style, google-style and rst-style formats.
+    
+    Parameters
+    -----------
+    docstring: str
+        documentation string
+    
+    Returns
+    -------
+    parameters: list
+        names of the parameters
+    """
+    params = []
+    if '\n' not in docstring:
+        return params
+    print("looking at:", docstring)
+    docstring_lstripped = strip_left_indent('\n'.join(docstring.split('\n')[1:]))
+    print("looking at:", docstring_lstripped)
+    for section_start, section_end in [
+        ('\nParameters\n---------', '\n---'),
+        ('\nOther Parameters\n---------', '\n---'),
+        ('\nArgs:', '\n\n')
+    ]:
+        if section_start in docstring_lstripped:
+            index_param_section = docstring_lstripped.index(section_start) + len(section_start)
+            try:
+                index_next_section = docstring_lstripped.index(section_end, index_param_section)
+            except ValueError:
+                index_next_section = -1
+            parameter_section = strip_left_indent(docstring_lstripped[index_param_section:index_next_section])
+            for line in parameter_section.split('\n'):
+                if not line.startswith(' ') and not line.startswith('\t') and ':' in line:
+                    print("found parameter line:", line, "in section:", parameter_section)
+                    params.append(line.split(':')[0].strip())
+            else:
+                print("nothing found in section:", parameter_section)
+    for line in docstring.split('\n'):
+        if ':param' in line:
+            params.append(line.split(':param')[1].split(':')[0])
+    return params
+
+class FuncDocChecker(ast.NodeVisitor):
+    """Compares parameter names in function definition with docstring."""
+    def __init__(self, filename):
+        self.filename = filename
+        self.undocumented_parameters_found = False
+    
+    def visit_FunctionDef(self, node):
+        arguments = node.args
+        module_docstring = ast.get_docstring(node)
+        if module_docstring is None:
+            return
+        
+        documented_parameters = list_documented_parameters(module_docstring)
+        function_arguments = [arg.arg for arg in arguments.args]
+        if documented_parameters == 0:
+            return
+        for arg in function_arguments:
+            if arg not in documented_parameters:
+                print("Function %s has arguments: %s" % (node.name, function_arguments))
+                print("but only these are documented: %s" % (documented_parameters))
+                sys.stderr.write('%s:%d: ERROR: argument "%s" of "%s" missing in docstring\n' % (
+                    self.filename, node.lineno, arg, node.name))
+                self.undocumented_parameters_found |= True
 
 class FuncLister(ast.NodeVisitor):
     """Compiles a list of all functions and class inits

@@ -33,7 +33,7 @@ import sys
 import builtins
 import logging
 
-from .funcchecker import FuncLister, CallLister, ModuleCallLister
+from .funcchecker import FuncLister, FuncDocChecker, CallLister, ModuleCallLister
 from .classchecker import ClassPropertiesLister
 
 preknown = set(builtins.__dict__).union({'__doc__', '__file__', '__name__', '__annotations__', '__dict__', '__builtins__'})
@@ -140,11 +140,12 @@ def block_terminates(statements):
     return False
 
 class NameAssignVerifier():
-    def __init__(self, filename):
+    def __init__(self, filename, allow_variable_reuse=False):
         self.filename = filename
         self.log = logging.getLogger('pystrict3.nameassign')
         self.found_variable_unknown = False
         self.found_variable_reused = False
+        self.allow_variable_reuse = allow_variable_reuse
         self.found_builtin_overwritten = False
 
     def variable_unknown_found(self, lineno, id):
@@ -165,12 +166,18 @@ class NameAssignVerifier():
                 self.found_builtin_overwritten |= True
                 raise Exception(name)
 
-            if previous_state is not None and previous_state == True and name != '_':
+            if name == '_':
                 # throwaway variable is allowed
-                sys.stderr.write('%s:%d: ERROR: Variable reuse: "%s", previously defined in line %d\n' % (
-                    self.filename, lineno, name, known[name][1]))
+                pass
+            elif previous_state is not None and previous_state == True:
                 self.found_variable_reused |= True
-                raise Exception(name)
+                if allow_variable_reuse:
+                    sys.stderr.write('%s:%d: ERROR: Variable "%s" set previously defined in line %d, is redefined here\n' % (
+                        self.filename, lineno, name, known[name][1]))
+                else:
+                    sys.stderr.write('%s:%d: WARNING: Variable "%s" set previously in line %d may have changed meaning\n' % (
+                        self.filename, lineno, name, known[name][1]))
+                    raise Exception(name)
 
 
     def check_new_identifiers(self, elements, node, known):
@@ -460,6 +467,11 @@ def main(filenames, module_load_policy='none'):
         if nameassigner.found_variable_reused:
             sys.exit(1)
         if nameassigner.found_builtin_overwritten:
+            sys.exit(1)
+        print("%s: checking docstrings ..." % filename)
+        funcdocs = FuncDocChecker(filename=filename)
+        funcdocs.visit(a)
+        if funcdocs.undocumented_parameters_found:
             sys.exit(1)
 
     print("pystrict3: OK")
