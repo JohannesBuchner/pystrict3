@@ -9,7 +9,7 @@ jobs:
         shell: bash -l {0}
     strategy:
       matrix:
-        python-version: [3.5, 3.7, 3.8, '3.9.1', '3']
+        python-version: [3.6, 3.7, 3.8, '3.9.1', '3']
       fail-fast: false
     steps:
       - uses: actions/checkout@v2
@@ -26,7 +26,7 @@ jobs:
         run: flake8 pystrict3.py pystrict3lib/*.py --show-source
       - name: Check documentation
         # stop the build if there are Python syntax errors or undefined names
-        if: ${{ !((matrix.python-version == '3.7') || (matrix.python-version == '3.5')) }}
+        if: ${{ !((matrix.python-version == '3.7') || (matrix.python-version == '3.6')) }}
         run: rst2html5 README.rst > README.html
       - name: Run tests
         run: make test
