@@ -389,6 +389,9 @@ class ModuleCallLister(ast.NodeVisitor):
                     return mod
                 del mod
 
+        if module_name in ModuleCallLister.KNOWN_MODULES:
+            return ModuleCallLister.KNOWN_MODULES[module_name]
+
         ModuleCallLister.KNOWN_MODULES[module_name] = None
         if self.load_policy != 'all' and module_name.split('.')[0] not in self.approved_module_names:
             return
