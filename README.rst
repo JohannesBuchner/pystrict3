@@ -162,20 +162,21 @@ Synapsis
 ::
 
     $ pystrict3.py --help
-usage: pystrict3.py [-h] [--import-builtin] [--import-any] [--allow-redefining] [--verbose] filenames [filenames ...]
 
-pystrict3: a Python code checker. Checks number of arguments in function, class init and method calls. Optionally also checks calls to imported modules. Checks that class attributes accessed are assigned somewhere. Checks that builtin names are
-not overwritten. Checks that variables are only assigned once.
+    usage: pystrict3.py [-h] [--import-builtin] [--import-any] [--allow-redefining] [--verbose] filenames [filenames ...]
 
-positional arguments:
-  filenames           python files to parse
+    pystrict3: a Python code checker. Checks number of arguments in function, class init and method calls. Optionally also checks calls to imported modules. Checks that class attributes accessed are assigned somewhere. Checks that builtin names are
+    not overwritten. Checks that variables are only assigned once.
 
-options:
-  -h, --help          show this help message and exit
-  --import-builtin    Also load builtin python modules to check function signatures. (default: False)
-  --import-any        Also load any modules specified in import statements to check function signatures. Warning: can execute arbitrary module code. (default: False)
-  --allow-redefining  Allow redefining variables. (default: False)
-  --verbose, -v       More verbose logging output. (default: False)
+    positional arguments:
+      filenames           python files to parse
+
+    options:
+      -h, --help          show this help message and exit
+      --import-builtin    Also load builtin python modules to check function signatures. (default: False)
+      --import-any        Also load any modules specified in import statements to check function signatures. Warning: can execute arbitrary module code. (default: False)
+      --allow-redefining  Allow redefining variables. (default: False)
+      --verbose, -v       More verbose logging output. (default: False)
 
 Usage
 --------
