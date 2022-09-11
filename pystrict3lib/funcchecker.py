@@ -92,6 +92,7 @@ def count_call_arguments(call):
         min_call_args += 1
     return min_call_args, may_have_more
 
+
 def strip_left_indent(s):
     body_lines = s.split('\n')
     filled_lines = [line for line in body_lines if line.strip() != '']
@@ -138,6 +139,7 @@ def list_documented_parameters(docstring):
             params.append(line.split(':param')[1].split(':')[0].strip())
     return params
 
+
 def max_documented_returns(docstring):
     """Extract a list of documented return values from docstring
 
@@ -171,6 +173,7 @@ def max_documented_returns(docstring):
         entries = [line for line in return_section.split('\n') if not line.startswith(' ') and not line.startswith('\t') and not line.strip() == '']
         # some return types could be optional, but we expect at least one
         return len(entries)
+
 
 class FuncLister(ast.NodeVisitor):
     """Compiles a list of all functions and class inits
@@ -255,6 +258,7 @@ class CallLister(ast.NodeVisitor):
         self.filename = filename
         self.known_functions = known_functions
         self.log = logging.getLogger('pystrict3.funcchecker')
+        self.checked_calls = 0
 
     def visit_Call(self, node):
         self.generic_visit(node)
@@ -277,6 +281,7 @@ class CallLister(ast.NodeVisitor):
             sys.exit(1)
         else:
             self.log.debug("call(%s with %d%s args): OK" % (funcname, min_call_args, '+' if may_have_more else ''))
+            self.checked_calls += 1
 
 
 BUILTIN_MODULES = []
@@ -296,6 +301,7 @@ class ModuleCallLister(ast.NodeVisitor):
         if load_policy is 'all', try to load arbitrary python libraries."""
 
         self.filename = filename
+        self.checked_calls = 0
 
         if load_policy not in ('none', 'builtins', 'all'):
             raise ValueError("load_policy needs to be one of ('none', 'builtins', 'all'), not '%s'" % load_policy)
@@ -448,7 +454,7 @@ class ModuleCallLister(ast.NodeVisitor):
             return
 
         if module_name is None or module_name not in ModuleCallLister.KNOWN_MODULES:
-            #print('skipping module "%s", because not registered' % module_alias)
+            # print('skipping module "%s", because not registered' % module_alias)
             return
 
         del module_alias
@@ -487,3 +493,4 @@ class ModuleCallLister(ast.NodeVisitor):
             sys.exit(1)
         else:
             self.log.debug('call(%s.%s with %d%s args): OK' % (module_name, funcname, min_call_args, '+' if may_have_more else ''))
+            self.checked_calls += 1

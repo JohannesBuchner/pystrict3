@@ -1,13 +1,19 @@
 pystrict3
 ----------
 
-pystrict3 statically checks Python3 code for simple mistakes, such as
+pystrict3 is a fast plausibility code analyser for Python3.
 
-* calling functions with the wrong number of arguments
-* accessing attributes and methods that are never defined
-* documenting the wrong number of arguments or return
+Thanks to static code analysis, it checks Python3 code for obvious mistakes,
+such as
 
-This complements other static analysers such as pyflakes, and
+* calling functions with the different number of arguments than they are defined with.
+* accessing attributes and methods that are never set.
+* documenting the wrong number of arguments.
+* using variables that are never set.
+
+Without running your python code!
+
+This tool complements other static analysers such as pyflakes, and
 can be used alongside linters and code format checkers (such as pylint and flake8).
 
 .. image:: https://travis-ci.org/JohannesBuchner/pystrict3.svg?branch=master
@@ -15,12 +21,8 @@ can be used alongside linters and code format checkers (such as pylint and flake
 .. image:: https://coveralls.io/repos/github/JohannesBuchner/pystrict3/badge.svg?branch=master
     :target: https://coveralls.io/github/JohannesBuchner/pystrict3?branch=master
 
-
-Assumptions
--------------
-
-pystrict3 assumes unsurprising Python code, i.e., no monkey patching of builtins,
-magic attributes (__dict__, __local__) that alter classes and variables.
+pystrict3 assumes that no monkey patching of builtin behaviour or
+magic attributes (__dict__, __local__) alter classes and variables behind the scenes.
 Python 3.5 and above is required.
 
 Function calls
@@ -154,8 +156,30 @@ Install
 
     $ pip3 install pystrict3
 
+
+Synapsis
+--------
+::
+
+    $ pystrict3.py --help
+usage: pystrict3.py [-h] [--import-builtin] [--import-any] [--allow-redefining] [--verbose] filenames [filenames ...]
+
+pystrict3: a Python code checker. Checks number of arguments in function, class init and method calls. Optionally also checks calls to imported modules. Checks that class attributes accessed are assigned somewhere. Checks that builtin names are
+not overwritten. Checks that variables are only assigned once.
+
+positional arguments:
+  filenames           python files to parse
+
+options:
+  -h, --help          show this help message and exit
+  --import-builtin    Also load builtin python modules to check function signatures. (default: False)
+  --import-any        Also load any modules specified in import statements to check function signatures. Warning: can execute arbitrary module code. (default: False)
+  --allow-redefining  Allow redefining variables. (default: False)
+  --verbose, -v       More verbose logging output. (default: False)
+
 Usage
 --------
+
 Run with::
 
     $ python3 pystrict3.py <filenames>
@@ -178,9 +202,15 @@ Example stderr outputs::
     tests/expect-fail/recipe-412717.py:32: ERROR: Variable reuse: "Test"
     tests/expect-fail/recipe-425043.py:13: ERROR: Function "pow" (3..3 arguments) called with 2 arguments
     tests/expect-fail/recipe-578135.py:184: ERROR: Function "encode" (3..3 arguments) called with 2 arguments
+    Summary:
+      - checked 287 function calls. 
+      - checked definition of 469 new and access of 393 variables.
+      - checked 4 docstrings.
+    pystrict3: OK
 
-Return code is 1 if a error was detected, or 0 otherwise.
-For non-verbose, pipe stdout to /dev/null.
+Return code is non-zero if a error was detected, or 0 otherwise.
+
+For verbose output, pipe stdout to /dev/null.
 
 Licence
 ---------
@@ -191,11 +221,11 @@ BSD 2-clause.
 Tipps
 ------
 
-It's OK to not be pystrict3 compliant. It can serve as guidance towards
+It's OK to have some pystrict3 warnings and errors. Take them as guidance towards
 cleaner code.
 
 
-How to write to pystrict3 compliance:
+How to write code that does not shadow or override variables:
 
 * Use del to actively remove unused variables::
      
