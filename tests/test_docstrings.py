@@ -253,6 +253,9 @@ def test_docstring_params():
 	p3 = list_documented_parameters(add.__doc__)
 	print(p3)
 	assert p3 == ['num1', 'num2']
+	assert list_documented_parameters("Oneliner") == []
+	assert list_documented_parameters("\nArgs:\n") == []
+	assert list_documented_parameters("\n:params foo:\n") == ['foo']
 
 
 def test_docstring_returns():
