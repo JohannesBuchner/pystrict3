@@ -33,7 +33,7 @@ import sys
 import builtins
 import logging
 
-from .funcchecker import FuncLister, FuncDocChecker, CallLister, ModuleCallLister
+from .funcchecker import FuncLister, list_documented_parameters, CallLister, ModuleCallLister
 from .classchecker import ClassPropertiesLister
 
 preknown = set(builtins.__dict__).union({'__doc__', '__file__', '__name__', '__annotations__', '__dict__', '__builtins__'})
@@ -138,6 +138,36 @@ def block_terminates(statements):
             if statement.value.func.value.id == 'sys' and statement.value.func.attr == 'exit':
                 return True
     return False
+
+
+class FuncDocVerifier(ast.NodeVisitor):
+    """Compares parameter names in function definition with docstring."""
+    def __init__(self, filename):
+        self.filename = filename
+        self.log = logging.getLogger('pystrict3.funcdoc')
+        self.undocumented_parameters_found = False
+    
+    def visit_FunctionDef(self, node):
+        arguments = node.args
+        module_docstring = ast.get_docstring(node)
+        if module_docstring is None:
+            return
+        
+        documented_parameters = list_documented_parameters(module_docstring)
+        function_arguments = [arg.arg for arg in arguments.args]
+        if len(documented_parameters) == 0:
+            if len(function_arguments) > 0:
+                sys.stderr.write('%s:%d: WARNING: function "%s" does not have any parameter docs\n' % (
+                    self.filename, node.lineno, node.name))
+            return
+        for arg in function_arguments:
+            if arg not in documented_parameters:
+                print("Function %s has arguments: %s" % (node.name, function_arguments))
+                print("but only these are documented: %s" % (documented_parameters))
+                sys.stderr.write('%s:%d: ERROR: argument "%s" of "%s" missing in docstring\n' % (
+                    self.filename, node.lineno, arg, node.name))
+                self.undocumented_parameters_found |= True
+
 
 class NameAssignVerifier():
     def __init__(self, filename, allow_variable_reuse=False):
@@ -469,7 +499,7 @@ def main(filenames, module_load_policy='none', allow_variable_reuse=False):
         if nameassigner.found_builtin_overwritten:
             sys.exit(4)
         print("%s: checking docstrings ..." % filename)
-        funcdocs = FuncDocChecker(filename=filename)
+        funcdocs = FuncDocVerifier(filename=filename)
         funcdocs.visit(a)
         if funcdocs.undocumented_parameters_found:
             sys.exit(5)

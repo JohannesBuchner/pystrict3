@@ -136,29 +136,6 @@ def list_documented_parameters(docstring):
             params.append(line.split(':param')[1].split(':')[0])
     return params
 
-class FuncDocChecker(ast.NodeVisitor):
-    """Compares parameter names in function definition with docstring."""
-    def __init__(self, filename):
-        self.filename = filename
-        self.undocumented_parameters_found = False
-    
-    def visit_FunctionDef(self, node):
-        arguments = node.args
-        module_docstring = ast.get_docstring(node)
-        if module_docstring is None:
-            return
-        
-        documented_parameters = list_documented_parameters(module_docstring)
-        function_arguments = [arg.arg for arg in arguments.args]
-        if documented_parameters == 0:
-            return
-        for arg in function_arguments:
-            if arg not in documented_parameters:
-                print("Function %s has arguments: %s" % (node.name, function_arguments))
-                print("but only these are documented: %s" % (documented_parameters))
-                sys.stderr.write('%s:%d: ERROR: argument "%s" of "%s" missing in docstring\n' % (
-                    self.filename, node.lineno, arg, node.name))
-                self.undocumented_parameters_found |= True
 
 class FuncLister(ast.NodeVisitor):
     """Compiles a list of all functions and class inits
