@@ -26,6 +26,11 @@ jobs:
         run: flake8 pystrict3.py pystrict3lib/*.py --show-source
       - name: Run tests
         run: make test
+      - name: Self-test
+        run: | 
+          pystrict3.py pystrict3.py pystrict3lib/*.py
+          pystrict3.py --import-builtin pystrict3.py pystrict3lib/*.py
+          pystrict3.py --import-any pystrict3.py pystrict3lib/*.py
       - name: Convert coverage output to lcov for coveralls
         run: |
           coverage-lcov
@@ -50,66 +55,3 @@ jobs:
       with:
         github-token: ${{ secrets.github_token }}
         parallel-finished: true
-
-
-language: python
-
-python:
-  - "3.5"
-  - "3.6"
-  - "3.7"
-  - "3.8"
-  - "3.9.1"
-  - "3"
-
-install:
-  - pip install coveralls numpy
-  - python setup.py install
-
-script:
-  # run tests
-  - bash runtests.sh
-  # self-check using installed scripts
-  - pystrict3.py pystrict3.py pystrict3lib/*.py
-  - pystrict3.py --import-builtin pystrict3.py pystrict3lib/*.py
-  - pystrict3.py --import-any pystrict3.py pystrict3lib/*.py
-
-after_success: coveralls
-
-
-name: test
-
-on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
-
-jobs:
-  build:
-
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        #python-version: [3.5, 3.6, 3.7, 3.8, "3.9.1", "3"]
-        python-version: ["3"]
-
-    steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: python -m pip install coveralls numpy
-      run: |
-        # stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: Install package
-      run: python -m pip install -e .
-    - name: Test with pytest
-      run: |
-        pytest
