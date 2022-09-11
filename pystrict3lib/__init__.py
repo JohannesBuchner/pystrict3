@@ -390,7 +390,8 @@ class NameAssignVerifier():
             for id in get_deleted_ids(node):
                 self.log.debug('%s+node deleted id: %s', '  '*depth, id)
                 known_nodes[id] = (False, node.lineno)
-            
+                del known_nodes[id]
+
             if hasattr(node, 'generators'):
                 # ignore result, because variables do not leak out
                 known_nodes2 = dict(**known_nodes)
