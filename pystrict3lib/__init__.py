@@ -221,13 +221,13 @@ class FuncDocVerifier(ast.NodeVisitor):
 
             if hasattr(node, 'body'):
                 body = node.body if isinstance(node.body, list) else [node.body]
-                yield from self.walk_tree(body)
+                yield from self._walk_tree(body)
 
             if getattr(node, 'orelse', []) != []:
-                yield from self.walk_tree(node.orelse)
+                yield from self._walk_tree(node.orelse)
 
             if getattr(node, 'finalbody', []) != []:
-                yield from self.walk_tree(node.finalbody)
+                yield from self._walk_tree(node.finalbody)
 
 
 class NameAssignVerifier():
@@ -470,7 +470,8 @@ class NameAssignVerifier():
             else:
                 for arg in getattr(node, 'args', []) + getattr(node, 'keywords', []):
                     for name in get_all_ids(arg):
-                        if name not in known_nodes or not known_nodes[name][0]:
+                        print([(k, v) for k,v in known_nodes.items() if v[1] != 'builtin'])
+                        if name not in known_nodes or known_nodes[name][0] == False:
                             self.variable_unknown_found(node.lineno, name)
                         known_nodes2[name] = (True, node.lineno)
             if hasattr(node, 'body'):
