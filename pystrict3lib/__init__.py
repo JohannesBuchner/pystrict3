@@ -291,7 +291,7 @@ class NameAssignVerifier():
         known_nodes = dict(**preknown)
         terminated = False
         for node in nodes:
-            print(); import pprintast; pprintast.pprintast(node)
+            #print(); import pprintast; pprintast.pprintast(node)
             if isinstance(node, ast.Return):
                 terminated |= True
                 break
@@ -313,7 +313,8 @@ class NameAssignVerifier():
             if not isinstance(node, ast.AugAssign) and not isinstance(node, ast.Name):
                 for id in get_assigned_ids(node):
                     self.log.debug('%s+node assigned id: %s', '  '*depth, id)
-                    self.assert_unknown(id, known_nodes, node.lineno)
+                    if isinstance(node, ast.Assign):
+                        self.assert_unknown(id, known_nodes, node.lineno)
                     known_nodes[id] = (True, node.lineno)
             for id in get_deleted_ids(node):
                 self.log.debug('%s+node deleted id: %s', '  '*depth, id)
@@ -322,12 +323,12 @@ class NameAssignVerifier():
             if hasattr(node, 'generators'):
                 # ignore result, because variables do not leak out
                 known_nodes2 = dict(**known_nodes)
-                for g in node.generators:
+                for g in node.generators[::-1]:
                     for id in get_assigned_ids(g):
                         self.log.debug('%s+generator %s id: %s', '  '*depth, g, id)
-                        self.assert_unknown(id, known_nodes2, g.lineno)
+                        self.assert_unknown(id, known_nodes2, node.lineno)
                         known_nodes2[id] = (True, node.lineno)
-                    self.walk_tree(g.body, known_nodes2, depth+1)
+                    self.walk_tree([g.target], known_nodes2, depth+1)
             if hasattr(node, 'test'):
                 # ignore result, because variables do not leak out
                 self.check_new_identifiers([node.test], node, dict(**known_nodes))
@@ -364,7 +365,7 @@ class NameAssignVerifier():
             if hasattr(node, 'body'):
                 body = node.body if isinstance(node.body, list) else [node.body]
                 members = self.walk_tree(body, known_nodes2, depth+1)
-                if not block_terminates(body) and not is_container(node):
+                if not is_container(node) and not block_terminates(body):
                     nbranches += 1
                     for id, var in members.items():
                         if id not in known_nodes or known_nodes[id][0] != var[0]:
@@ -377,8 +378,8 @@ class NameAssignVerifier():
                     nbranches += 1
                     known_nodes2 = dict(**known_nodes)
                     if handler.name is not None:
-                        known_nodes2[handler.name.id] = (True, handler.lineno)
-                        nodes_to_add[id] = (nodes_to_add.get(id, (0, None))[0] + 1, (True, handler.lineno))
+                        known_nodes2[handler.name] = (True, handler.lineno)
+                        nodes_to_add[handler.name] = (nodes_to_add.get(handler.name, (0, None))[0] + 1, (True, handler.lineno))
                     for id, var in members.items():
                         if id not in known_nodes or known_nodes[id][0] != var[0]:
                             nodes_to_add[id] = (nodes_to_add.get(id, (0, None))[0] + 1, var)
@@ -397,12 +398,12 @@ class NameAssignVerifier():
                 if nbranches_adding == nbranches:
                     self.assert_unknown(id, known_nodes, node.lineno)
                     if not is_container(node):
-                        self.log.debug('%s+%s (from all branches)', id)
+                        self.log.debug('%s+%s (from all branches)', '  '*depth, id)
                         known_nodes[id] = True, var[1]
                 else:
                     if not is_container(node):
                         known_nodes[id] = None, var[1]
-                        self.log.debug('%s+%s (in some branches)', id)
+                        self.log.debug('%s+%s (in some branches)', '  '*depth, id)
 
             if getattr(node, 'finalbody', []) != []:
                 members = self.walk_tree(node.finalbody, known_nodes, depth+1)
