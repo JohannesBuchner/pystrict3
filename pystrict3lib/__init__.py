@@ -456,9 +456,10 @@ class NameAssignVerifier():
                             nodes_to_add[id] = (nodes_to_add.get(id, (0, None))[0] + 1, var)
                 self.log.debug('%s+nodes from handlers: %s', '  '*depth, nodes_to_add)
 
-            if getattr(node, 'orelse', []) != []:
-                members = self.walk_tree(node.orelse, known_nodes, depth+1)
-                if not block_terminates(node.orelse):
+            if getattr(node, 'orelse', None) is not None:
+                self.log.debug('%s+nodes from else: %s', '  '*depth, node.orelse)
+                members = self.walk_tree([node.orelse], known_nodes, depth+1)
+                if not block_terminates([node.orelse]):
                     nbranches += 1
                     for id, var in members.items():
                         if id not in known_nodes or known_nodes[id][0] != var[0]:
