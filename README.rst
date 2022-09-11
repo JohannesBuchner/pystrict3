@@ -5,7 +5,7 @@ pystrict3 statically checks Python3 code for simple mistakes, such as
 
 * calling functions with the wrong number of arguments
 * accessing attributes and methods that are never defined
-* shadowing and re-using variables
+* documenting the wrong number of arguments or return
 
 This complements other static analysers such as pyflakes, and
 can be used alongside linters and code format checkers (such as pylint and flake8).
@@ -19,9 +19,9 @@ can be used alongside linters and code format checkers (such as pylint and flake
 Assumptions
 -------------
 
-pystrict3 assumes unsurprising Python code, and assumes no monkey patching,
-no magic attributes (__dict__, __local__) that alter classes and variables,
-and no builtins have been altered. Python 3.5 and above is required.
+pystrict3 assumes unsurprising Python code, i.e., no monkey patching of builtins,
+magic attributes (__dict__, __local__) that alter classes and variables.
+Python 3.5 and above is required.
 
 Function calls
 ----------------
@@ -86,6 +86,31 @@ pystrict3 also checks docstrings for documented arguments and returns
 It does not give an error if no docstrings are present. 
 However, if only part of the arguments are documented, it gives an 
 error pointing out the missing arguments to document.
+
+For example::
+
+    def compute(num1, num2):
+        """
+        Combined two integer numbers.
+
+        Parameters
+        ----------
+        num1 : int
+            First number to add.
+        
+        Returns
+        -------
+        sum: int
+            first number plus second number
+        int
+            first number minus second number
+        """:
+            return num1 + num2, num1 - num2, num1
+
+This would raise two warnings:
+
+1. parameter num2 is not documented
+2. a triple is returned, but a tuple is documented.
 
 Redefined variable
 -------------------
