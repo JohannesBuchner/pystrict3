@@ -32,9 +32,11 @@ import ast
 import sys
 import builtins
 import logging
+import operator
 
-from .funcchecker import FuncLister, list_documented_parameters, CallLister, ModuleCallLister
+from .funcchecker import FuncLister, list_documented_parameters, max_documented_returns, CallLister, ModuleCallLister
 from .classchecker import ClassPropertiesLister
+first_item_getter = operator.itemgetter(0)
 
 preknown = set(builtins.__dict__).union({'__doc__', '__file__', '__name__', '__annotations__', '__dict__', '__builtins__'})
 
@@ -146,6 +148,7 @@ class FuncDocVerifier(ast.NodeVisitor):
         self.filename = filename
         self.log = logging.getLogger('pystrict3.funcdoc')
         self.undocumented_parameters_found = False
+        self.undocumented_returns_found = False
     
     def visit_FunctionDef(self, node):
         arguments = node.args
@@ -167,6 +170,37 @@ class FuncDocVerifier(ast.NodeVisitor):
                 sys.stderr.write('%s:%d: ERROR: argument "%s" of "%s" missing in docstring\n' % (
                     self.filename, node.lineno, arg, node.name))
                 self.undocumented_parameters_found |= True
+
+        all_returns = [(return_tuple_length, return_node) for return_tuple_length, return_node in self.walk_tree(node.body) if return_tuple_length > 1]
+        if len(all_returns) == 0:
+            return
+        return_tuple_length, return_node = max(all_returns, key=first_item_getter)
+        if return_tuple_length > 1:
+            # see if a return tuple is documented
+            num_documented_returns = max_documented_returns(module_docstring) or 1
+            self.log.debug("%s returns at most %s values; %d documented", node.name, return_tuple_length, num_documented_returns)
+            if return_tuple_length > num_documented_returns:
+                names = [getattr(el, 'id', 'var') for el in return_node.elts]
+                sys.stderr.write('%s:%d: ERROR: function "%s" does not document return of %d elements as in line %d: (%s)\n' % (
+                    self.filename, node.lineno, node.name, return_tuple_length, return_node.lineno, ', '.join(names)))
+                self.undocumented_returns_found |= True
+
+
+    def walk_tree(self, nodes):
+        for node in nodes:
+            if isinstance(node, ast.Return):
+                #print("  inside:", node, node.value, len(getattr(node.value, 'elts', [])))
+                yield len(getattr(node.value, 'elts', [])), node.value
+
+            if hasattr(node, 'body'):
+                body = node.body if isinstance(node.body, list) else [node.body]
+                yield from self.walk_tree(body)
+
+            if getattr(node, 'orelse', []) != []:
+                yield from self.walk_tree(node.orelse)
+
+            if getattr(node, 'finalbody', []) != []:
+                yield from self.walk_tree(node.finalbody)
 
 
 class NameAssignVerifier():

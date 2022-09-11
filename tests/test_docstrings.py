@@ -1,4 +1,4 @@
-from pystrict3lib.funcchecker import list_documented_parameters, strip_left_indent
+from pystrict3lib.funcchecker import list_documented_parameters, strip_left_indent, max_documented_returns
 
 def fetch_smalltable_rows(table_handle,
                           keys,
@@ -132,7 +132,11 @@ def foo(var1, var2, args, long_var_name='hi', *kwargs):
 	# separate following codes (according to PEP257).
 	# But for function, method and module, there should be no blank lines
 	# after closing the docstring.
-	pass
+	if True:
+		return False, 'foo', list_documented_parameters('out'), [3,4]
+	else:
+		mylist = True, 'foo', 1, 2
+		return mylist
 
 def add(num1, num2):
     """
@@ -191,6 +195,53 @@ hello
 world
 """
 
+def get_extended_auxiliary_problem(loglike, transform, ctr, invcov, enlargement_factor, df=1):
+    """Return a new loglike and transform based on an auxiliary distribution.
+
+    Given a likelihood and prior transform, and information about
+    the (expected) posterior peak, generates a auxiliary
+    likelihood and prior transform that is identical but
+    requires fewer nested sampling iterations.
+
+    This is achieved by deforming the prior space, and undoing that
+    transformation by correction weights in the likelihood.
+
+    The auxiliary distribution used for transformation/weighting is
+    a d-dimensional Student-t distribution.
+
+    Parameters
+    ------------
+    loglike: function
+        original likelihood function
+    transform: function
+        original prior transform function
+    ctr: array
+        Posterior center (in u-space).
+    invcov: array
+        Covariance of the posterior (in u-space).
+    enlargement_factor: float
+        Factor by which the scale of the auxiliary distribution is enlarged
+        in all dimensions.
+
+        For Gaussian-like posteriors, sqrt(ndim) seems to work,
+        Heavier tailed or non-elliptical distributions may need larger factors.
+    df: float
+        Number of degrees of freedom of the auxiliary student-t distribution.
+        The default is recommended. For truly gaussian posteriors,
+        the student-t can be made more gaussian (by df>=30) for accelation.
+
+    Returns
+    ---------
+    aux_loglike: function
+        auxiliary loglikelihood function. Takes d + 1 parameters (see below).
+        The likelihood is the same as loglike, but adds weights.
+    aux_transform: function
+        auxiliary transform function.
+        Takes d u-space coordinates, and returns d + 1 p-space parameters.
+        The first d return coordinates are identical to what ``transform`` would return.
+        The final coordinate is the correction weight.
+    """
+    pass
 	
 def test_docstring_params():
 	p1 = list_documented_parameters(fetch_smalltable_rows.__doc__)
@@ -202,3 +253,10 @@ def test_docstring_params():
 	p3 = list_documented_parameters(add.__doc__)
 	print(p3)
 	assert p3 == ['num1', 'num2']
+
+
+def test_docstring_returns():
+	assert 1 == max_documented_returns(fetch_smalltable_rows.__doc__) or 1
+	assert 4 == max_documented_returns(foo.__doc__) or 1
+	assert 1 == max_documented_returns(add.__doc__) or 1
+	assert 2 == max_documented_returns(get_extended_auxiliary_problem.__doc__)

@@ -93,7 +93,6 @@ def strip_left_indent(s):
     body_lines = s.split('\n')
     filled_lines = [line for line in body_lines if line.strip() != '']
     left_padding_to_remove = min(len(line) - len(line.lstrip()) for line in filled_lines)
-    print("will remove:", left_padding_to_remove)
     return '\n'.join(['' if line.strip() == '' else line[left_padding_to_remove:] for line in body_lines])
     
 
@@ -136,6 +135,39 @@ def list_documented_parameters(docstring):
             params.append(line.split(':param')[1].split(':')[0])
     return params
 
+def max_documented_returns(docstring):
+    """Extract a list of documented return values from docstring
+
+    for numpydoc-style, get the number.
+    google-style and rst-style formats do not provide this.
+    
+    Parameters
+    -----------
+    docstring: str
+        documentation string
+    
+    Returns
+    -------
+    max_returns: int or None
+        None if unsure, int if the maximum number could be determined.
+    """
+    params = []
+    if '\n' not in docstring:
+        return params
+    docstring_lstripped = strip_left_indent('\n'.join(docstring.split('\n')[1:]))
+    section_start = '\nReturns\n---------'
+    section_end = '\n---'
+    if section_start in docstring_lstripped:
+        index_param_section = docstring_lstripped.index(section_start) + len(section_start)
+        try:
+            index_next_section = docstring_lstripped.index(section_end, index_param_section)
+        except ValueError:
+            index_next_section = -1
+        return_section = strip_left_indent(docstring_lstripped[index_param_section:index_next_section])
+        # simply count non-indented lines, because name is optional
+        entries = [line for line in return_section.split('\n') if not line.startswith(' ') and not line.startswith('\t') and not line.strip() == '']
+        # some return types could be optional, but we expect at least one
+        return len(entries)
 
 class FuncLister(ast.NodeVisitor):
     """Compiles a list of all functions and class inits

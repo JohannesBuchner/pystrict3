@@ -88,7 +88,7 @@ if __name__ == '__main__':
     formatter = logging.Formatter('[%(levelname)s] %(message)s')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-    handler.setLevel(logging.DEBUG if args.verbose else logging.INFO)
+    logger.setLevel(logging.DEBUG if args.verbose else logging.INFO)
 
     module_load_policy = 'all' if args.import_any else 'builtins' if args.import_builtin else 'none'
     pystrict3lib.main(args.filenames, module_load_policy, args.allow_redefining)
