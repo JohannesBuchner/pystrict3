@@ -16,8 +16,8 @@ Without running your python code!
 This tool complements other static analysers such as pyflakes, and
 can be used alongside linters and code format checkers (such as pylint and flake8).
 
-.. image:: https://travis-ci.org/JohannesBuchner/pystrict3.svg?branch=master
-    :target: https://travis-ci.org/JohannesBuchner/pystrict3
+.. image:: https://github.com/JohannesBuchner/pystrict3/actions/workflows/tests.yml/badge.svg
+    :target: https://github.com/JohannesBuchner/pystrict3/actions/workflows/tests.yml
 .. image:: https://coveralls.io/repos/github/JohannesBuchner/pystrict3/badge.svg?branch=master
     :target: https://coveralls.io/github/JohannesBuchner/pystrict3?branch=master
 
