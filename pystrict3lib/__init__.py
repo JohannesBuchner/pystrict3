@@ -52,6 +52,7 @@ def get_arg_ids(node):
         args = node.args
         for arg in args.args:
             yield arg.arg
+            del arg
         if hasattr(args, 'kwonlyargs'):
             for arg in args.kwonlyargs:
                 yield arg.arg
@@ -125,6 +126,7 @@ def get_all_ids(node):
             args = node.args
             for arg in args.args:
                 yield arg.arg
+                del arg
             if hasattr(args, 'kwonlyargs'):
                 for arg in args.kwonlyargs:
                     yield arg.arg
@@ -135,6 +137,7 @@ def get_all_ids(node):
         else:
             for arg in node.args:
                 yield from get_all_ids(arg)
+                del arg
     if hasattr(node, 'value') and not isinstance(node, ast.Attribute):
         yield from get_all_ids(node.value)
 
@@ -166,14 +169,16 @@ class FuncDocVerifier(ast.NodeVisitor):
             # look for methods:
             if isinstance(child, ast.FunctionDef):
                 self.class_methods.append(child)
+        self.generic_visit(node)
 
     def visit_FunctionDef(self, node):
         arguments = node.args
-        module_docstring = ast.get_docstring(node)
-        if module_docstring is None:
+        func_docstring = ast.get_docstring(node, clean=True)
+        if func_docstring is None:
+            self.log.debug('%s:%d:no docstring for function "%s"', self.filename, node.lineno, node.name)
             return
 
-        documented_parameters = list_documented_parameters(module_docstring)
+        documented_parameters = list_documented_parameters(func_docstring)
         function_arguments = [arg.arg for arg in arguments.args]
         if node in self.class_methods:
             arguments = function_arguments[1:]
@@ -202,7 +207,7 @@ class FuncDocVerifier(ast.NodeVisitor):
         return_tuple_length, return_node = max(all_returns, key=first_item_getter)
         if return_tuple_length > 1:
             # see if a return tuple is documented
-            num_documented_returns = max_documented_returns(module_docstring) or 1
+            num_documented_returns = max_documented_returns(func_docstring) or 1
             self.log.debug("%s returns at most %s values; %d documented", node.name, return_tuple_length, num_documented_returns)
             if return_tuple_length > num_documented_returns:
                 names = [getattr(el, 'id', 'var') for el in return_node.elts]
@@ -213,6 +218,7 @@ class FuncDocVerifier(ast.NodeVisitor):
                     sys.stderr.write('%s:%d: ERROR: function "%s" does not document return of %d elements as in line %d: (%s)\n' % (
                         self.filename, node.lineno, node.name, return_tuple_length, return_node.lineno, ', '.join(names)))
                     self.undocumented_returns_found |= True
+        self.generic_visit(node)
 
     def _walk_tree(self, nodes):
         for node in nodes:

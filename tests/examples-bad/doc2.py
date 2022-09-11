@@ -1,3 +1,7 @@
+def foo(var1, var2):
+	"""this is a function"""
+	pass
+
 def foo(var1, var2, args, long_var_name='hi', *kwargs):
 	r"""Summarize the function in one line.
 

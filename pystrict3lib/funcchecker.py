@@ -130,21 +130,18 @@ def list_documented_parameters(docstring):
         names of the parameters
     """
     params = []
-    if '\n' not in docstring:
-        return params
-    docstring_lstripped = strip_left_indent('\n'.join(docstring.split('\n')[1:]))
     for section_start, section_end in [
         ('\nParameters\n---------', '\n---'),
         ('\nOther Parameters\n---------', '\n---'),
         ('\nArgs:', '\n\n')
     ]:
-        if section_start in docstring_lstripped:
-            index_param_section = docstring_lstripped.index(section_start) + len(section_start)
+        if section_start in docstring:
+            index_param_section = docstring.index(section_start) + len(section_start)
             try:
-                index_next_section = docstring_lstripped.index(section_end, index_param_section)
+                index_next_section = docstring.index(section_end, index_param_section)
             except ValueError:
                 index_next_section = -1
-            parameter_section = strip_left_indent(docstring_lstripped[index_param_section:index_next_section])
+            parameter_section = strip_left_indent(docstring[index_param_section:index_next_section])
             for line in parameter_section.split('\n'):
                 if not line.startswith(' ') and not line.startswith('\t') and ':' in line:
                     params.append(line.split(':')[0].strip())
