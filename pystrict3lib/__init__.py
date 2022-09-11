@@ -175,6 +175,7 @@ class FuncDocVerifier(ast.NodeVisitor):
                 sys.stderr.write('%s:%d: WARNING: function "%s" does not have any parameter docs\n' % (
                     self.filename, node.lineno, node.name))
             return
+        self.log.debug("documented parameters of %s: %s", node.name, ', '.join(documented_parameters))
         for arg in arguments:
             if arg not in documented_parameters:
                 sys.stderr.write('%s:%d: ERROR: argument "%s" of "%s" missing in docstring\n' % (
@@ -239,7 +240,6 @@ class NameAssignVerifier():
                     sys.stderr.write('%s:%d: ERROR: Overwriting builtin variable: "%s"\n' % (
                         self.filename, lineno, name))
                     self.found_builtin_overwritten |= True
-                    raise Exception(name)
             elif name == '_':
                 # throwaway variable is allowed to be overridden
                 pass
@@ -251,7 +251,6 @@ class NameAssignVerifier():
                 else:
                     sys.stderr.write('%s:%d: ERROR: Variable "%s" set previously defined in line %d, is redefined here\n' % (
                         self.filename, lineno, name, known[name][1]))
-                    raise Exception(name)
 
 
     def check_new_identifiers(self, elements, node, known):
@@ -541,5 +540,7 @@ def main(filenames, module_load_policy='none', allow_variable_reuse=False):
         funcdocs.visit(a)
         if funcdocs.undocumented_parameters_found:
             sys.exit(5)
+        if funcdocs.undocumented_returns_found:
+            sys.exit(6)
 
     print("pystrict3: OK")

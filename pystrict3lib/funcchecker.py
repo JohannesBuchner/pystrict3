@@ -135,7 +135,7 @@ def list_documented_parameters(docstring):
                     params.append(line.split(':')[0].strip())
     for line in docstring.split('\n'):
         if ':param' in line:
-            params.append(line.split(':param')[1].split(':')[0])
+            params.append(line.split(':param')[1].split(':')[0].strip())
     return params
 
 def max_documented_returns(docstring):
@@ -382,7 +382,7 @@ class ModuleCallLister(ast.NodeVisitor):
             for level in funcname.split('.'):
                 subm = getattr(mod, level, None)
                 if subm is None:
-                    print('skipping unknown function "%s.%s"' % (module_name, level))
+                    self.log.debug('skipping unknown function "%s.%s"' % (module_name, level))
                     return
                 else:
                     del mod
