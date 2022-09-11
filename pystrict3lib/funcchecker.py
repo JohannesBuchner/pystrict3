@@ -322,9 +322,9 @@ class ModuleCallLister(ast.NodeVisitor):
         """Initialize.
 
         :param filename: file name
-        :param load_policy: if 'none', do not load any new modules. 
+        :param load_policy: if 'none', do not load any new modules.
             if 'builtins', load python libraries from the python
-            standard library path. if 'all', try to load arbitrary 
+            standard library path. if 'all', try to load arbitrary
             python libraries as they are imported.
         """
 

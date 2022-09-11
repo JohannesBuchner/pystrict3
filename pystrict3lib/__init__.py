@@ -138,6 +138,7 @@ def get_all_ids(node):
     if hasattr(node, 'value') and not isinstance(node, ast.Attribute):
         yield from get_all_ids(node.value)
 
+
 def block_terminates(statements):
     """Check if code block stops the execution."""
     for statement in statements:
@@ -395,9 +396,9 @@ class NameAssignVerifier():
                 del known[name]
         self.log.debug('known: %s', known.keys() - preknown)
 
-
     def walk_tree(self, nodes, preknown={}, depth=0):
         known_nodes = dict(**preknown)
+        depthstr = ' ' * depth
         terminated = False
         for node in nodes:
             # print(); import pprintast; pprintast.pprintast(node)
@@ -408,25 +409,27 @@ class NameAssignVerifier():
                 if node.value.func.value.id == 'sys' and node.value.func.attr == 'exit':
                     terminated |= True
                     break
-            self.log.debug('%swalk tree: %s[args:%s, assigned:%s] (terminating: %d)', '  '*depth, type(node).__name__, set(get_arg_ids(node)), set(get_assigned_ids(node)), terminated)
+            self.log.debug(
+                '%swalk tree: %s[args:%s, assigned:%s] (terminating: %d)', depthstr,
+                type(node).__name__, set(get_arg_ids(node)), set(get_assigned_ids(node)), terminated)
 
             # modified = getattr(node, 'decorator_list', []) != []
 
             if not is_container(node):
                 self.check_new_identifiers([node], node, dict(**known_nodes))
             elif hasattr(node, 'name'):
-                self.log.debug('%s+node name: %s', '  '*depth, node.name)
+                self.log.debug('%s+node name: %s', depthstr, node.name)
                 self.assert_unknown(node.name, known_nodes, node.lineno)
                 known_nodes[node.name] = (True, node.lineno)
 
             if not isinstance(node, ast.AugAssign) and not isinstance(node, ast.Name):
                 for name in get_assigned_ids(node):
-                    self.log.debug('%s+node assigned name: %s', '  '*depth, name)
+                    self.log.debug('%s+node assigned name: %s', depthstr, name)
                     if isinstance(node, ast.Assign):
                         self.assert_unknown(name, known_nodes, node.lineno)
                     known_nodes[name] = (True, node.lineno)
             for name in get_deleted_ids(node):
-                self.log.debug('%s+node deleted name: %s', '  '*depth, name)
+                self.log.debug('%s+node deleted name: %s', depthstr, name)
                 known_nodes[name] = (False, node.lineno)
 
             if hasattr(node, 'generators'):
@@ -434,10 +437,10 @@ class NameAssignVerifier():
                 known_nodes2 = dict(**known_nodes)
                 for g in node.generators[::-1]:
                     for name in get_assigned_ids(g):
-                        self.log.debug('%s+generator %s name: %s', '  '*depth, g, name)
+                        self.log.debug('%s+generator %s name: %s', depthstr, g, name)
                         self.assert_unknown(name, known_nodes2, node.lineno)
                         known_nodes2[name] = (True, node.lineno)
-                    self.walk_tree([g.target], known_nodes2, depth+1)
+                    self.walk_tree([g.target], known_nodes2, depth + 1)
             if hasattr(node, 'test'):
                 # ignore result, because variables do not leak out
                 self.check_new_identifiers([node.test], node, dict(**known_nodes))
@@ -446,7 +449,7 @@ class NameAssignVerifier():
                 self.check_new_identifiers([node.iter], node, dict(**known_nodes))
             if hasattr(node, 'value'):
                 # ignore result, because variables do not leak out
-                self.walk_tree([node.value], dict(**known_nodes), depth+1)
+                self.walk_tree([node.value], dict(**known_nodes), depth + 1)
                 # self.check_new_identifiers([node.value], node, dict(**known_nodes))
             # if hasattr(node, 'target'):
             #     for name in get_assigned_ids(node.target):
@@ -467,21 +470,21 @@ class NameAssignVerifier():
             else:
                 for arg in getattr(node, 'args', []) + getattr(node, 'keywords', []):
                     for name in get_all_ids(arg):
-                        if name not in known_nodes or known_nodes[name][0] == False:
+                        if name not in known_nodes or not known_nodes[name][0]:
                             self.variable_unknown_found(node.lineno, name)
                         known_nodes2[name] = (True, node.lineno)
             if hasattr(node, 'body'):
                 body = node.body if isinstance(node.body, list) else [node.body]
-                members = self.walk_tree(body, known_nodes2, depth+1)
+                members = self.walk_tree(body, known_nodes2, depth + 1)
                 if not is_container(node) and not block_terminates(body):
                     nbranches += 1
                     for name, var in members.items():
                         if name not in known_nodes or known_nodes[name][0] != var[0]:
                             nodes_to_add[name] = (nodes_to_add.get(name, (0, None))[0] + 1, var)
-                self.log.debug('%s+nodes from body: %s', '  '*depth, nodes_to_add)
+                self.log.debug('%s+nodes from body: %s', depthstr, nodes_to_add)
 
             for handler in getattr(node, 'handlers', []):
-                members = self.walk_tree(handler.body, known_nodes, depth+1)
+                members = self.walk_tree(handler.body, known_nodes, depth + 1)
                 if not block_terminates(handler.body):
                     nbranches += 1
                     known_nodes2 = dict(**known_nodes)
@@ -491,39 +494,39 @@ class NameAssignVerifier():
                     for name, var in members.items():
                         if name not in known_nodes or known_nodes[name][0] != var[0]:
                             nodes_to_add[name] = (nodes_to_add.get(name, (0, None))[0] + 1, var)
-                self.log.debug('%s+nodes from handlers: %s', '  '*depth, nodes_to_add)
+                self.log.debug('%s+nodes from handlers: %s', depthstr, nodes_to_add)
 
             if getattr(node, 'orelse', None) is not None:
-                self.log.debug('%s+nodes from else: %s', '  '*depth, node.orelse)
-                members = self.walk_tree([node.orelse], known_nodes, depth+1)
+                self.log.debug('%s+nodes from else: %s', depthstr, node.orelse)
+                members = self.walk_tree([node.orelse], known_nodes, depth + 1)
                 if not block_terminates([node.orelse]):
                     nbranches += 1
                     for name, var in members.items():
                         if name not in known_nodes or known_nodes[name][0] != var[0]:
                             nodes_to_add[name] = (nodes_to_add.get(name, (0, None))[0] + 1, var)
-                self.log.debug('%s+nodes from else: %s', '  '*depth, nodes_to_add)
+                self.log.debug('%s+nodes from else: %s', depthstr, nodes_to_add)
 
             for name, (nbranches_adding, var) in nodes_to_add.items():
                 if nbranches_adding == nbranches:
                     self.assert_unknown(name, known_nodes, node.lineno)
                     if not is_container(node):
-                        self.log.debug('%s+%s (from all branches)', '  '*depth, name)
+                        self.log.debug('%s+%s (from all branches)', depthstr, name)
                         known_nodes[name] = True, var[1]
                 else:
                     if not is_container(node):
                         known_nodes[name] = None, var[1]
-                        self.log.debug('%s+%s (in some branches)', '  '*depth, name)
+                        self.log.debug('%s+%s (in some branches)', depthstr, name)
 
             if getattr(node, 'finalbody', []) != []:
-                members = self.walk_tree(node.finalbody, known_nodes, depth+1)
+                members = self.walk_tree(node.finalbody, known_nodes, depth + 1)
                 if not block_terminates(node.finalbody):
                     for name, var in members.items():
                         if name not in known_nodes or known_nodes[name][0] != var[0]:
-                            self.log.debug('%s+%s (from final)', '  '*depth, name)
+                            self.log.debug('%s+%s (from final)', depthstr, name)
                             known_nodes[name] = var
-                self.log.debug('%s+nodes from final: %s', '  '*depth, members)
+                self.log.debug('%s+nodes from final: %s', depthstr, members)
 
-            self.log.debug('%scurrent knowledge: %s', '  '*depth, known_nodes.keys() - preknown.keys())
+            self.log.debug('%scurrent knowledge: %s', depthstr, known_nodes.keys() - preknown.keys())
 
         return known_nodes
 
