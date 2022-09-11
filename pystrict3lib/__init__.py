@@ -175,34 +175,35 @@ class FuncDocVerifier(ast.NodeVisitor):
 
     def visit_FunctionDef(self, node):
         arguments = node.args
+        # allow "Parameters" as first line as well by prepending a newline
         func_docstring = ast.get_docstring(node, clean=True)
         if func_docstring is None:
             self.log.debug('%s:%d:no docstring for function "%s"', self.filename, node.lineno, node.name)
             return
 
-        documented_parameters = list_documented_parameters(func_docstring)
+        documented_parameters = list_documented_parameters('\n' + func_docstring)
         function_arguments = [arg.arg for arg in arguments.args]
-        variable_length = arguments.vararg or arguments.kwonlyargs
+        variable_length = arguments.vararg or arguments.kwarg
         if node in self.class_methods:
-            arguments = function_arguments[1:]
+            argument_names = function_arguments[1:]
         else:
-            arguments = function_arguments
+            argument_names = function_arguments
         del function_arguments
         if len(documented_parameters) == 0:
-            if len(arguments) > 0 and not node.name.startswith('_'):
+            if len(argument_names) > 0 and not node.name.startswith('_'):
                 sys.stderr.write('%s:%d: WARNING: function "%s" does not have any parameter docs\n' % (
                     self.filename, node.lineno, node.name))
             return
         self.checked_docstrings += 1
         self.log.debug("documented parameters of %s: %s", node.name, ', '.join(documented_parameters))
-        for arg in arguments:
+        for arg in argument_names:
             if arg not in documented_parameters:
                 sys.stderr.write('%s:%d: ERROR: argument "%s" of "%s" missing in docstring\n' % (
                     self.filename, node.lineno, arg, node.name))
                 self.undocumented_parameters_found |= True
         if not variable_length:
             for arg in documented_parameters:
-                if not arg.startswith('*') and arg not in arguments:
+                if not arg.startswith('*') and arg not in argument_names:
                     sys.stderr.write('%s:%d: ERROR: "%s" in docstring is not an argument of "%s"\n' % (
                         self.filename, node.lineno, arg, node.name))
                     self.undocumented_parameters_found |= True
