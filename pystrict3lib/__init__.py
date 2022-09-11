@@ -77,6 +77,8 @@ def get_assigned_ids(node):
                 yield target.asname
             else:
                 yield target.name
+        else:
+            yield target.name.split('.')[0]
     if hasattr(node, 'elts'):
         for el in node.elts:
             yield from get_assigned_ids(el)
@@ -305,10 +307,10 @@ class NameAssignVerifier():
                         name = getattr(name, 'asname')
                     elif hasattr(name, 'name'):
                         name = name.name
-                    self.log.debug('check_new_identifiers: name %s', name)
+                    self.log.debug('check_new_identifiers: name %s from module %s', name, getattr(node, 'module', ''))
                     self.assert_unknown(
                         name, known, el.lineno,
-                        override_with_builtins=getattr(node, 'module', '') == 'builtins')
+                        override_with_builtins=getattr(node, 'module', '') in ('builtins', 'six.moves'))
                     name = name.split('.')[0]
                     add_here[name] = el.lineno
                 del name, names
