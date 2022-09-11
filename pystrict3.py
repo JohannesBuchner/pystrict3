@@ -15,6 +15,7 @@ Checks that variables are only assigned once.
 import sys
 import pystrict3lib
 import argparse
+import logging
 
 """
 BSD 2-Clause License
@@ -70,12 +71,24 @@ if __name__ == '__main__':
         Warning: can execute arbitrary module code.""")
 
     parser.add_argument(
-        '--functional', default=False, action='store_true',
-        help="""Disallow overwriting variables.""")
+        '--allow-redefining', default=False, action='store_true',
+        help="""Allow redefining variables.""")
+
+    parser.add_argument(
+        '--verbose', '-v', default=False, action='store_true',
+        help="""More verbose logging output.""")
 
     parser.add_argument('filenames', type=str, nargs='+', help="""python files to parse""")
 
     args = parser.parse_args()
 
+    logger = logging.getLogger('pystrict3')
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setLevel(logging.DEBUG if args.verbose else logging.INFO)
+    formatter = logging.Formatter('[%(levelname)s] %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    handler.setLevel(logging.DEBUG if args.verbose else logging.INFO)
+
     module_load_policy = 'all' if args.import_any else 'builtins' if args.import_builtin else 'none'
-    pystrict3lib.main(args.filenames, module_load_policy, not args.functional)
+    pystrict3lib.main(args.filenames, module_load_policy, args.allow_redefining)

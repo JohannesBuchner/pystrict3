@@ -34,7 +34,7 @@ done
 
 echo
 echo "using a builtin module correctly should not cause an error if not allowed to load it..."
-coverage run -a ./pystrict3.py tests/examples-good/14.py || exit 1
+coverage run -a ./pystrict3.py -v tests/examples-good/14.py || exit 1
 
 echo "checking that pytest misuse causes error"
 coverage run -a ./pystrict3.py --import-any tests/examples-bad-external/7.py && exit 1
@@ -46,7 +46,7 @@ coverage run -a ./pystrict3.py --import-any tests/examples-good-external/7.py ||
 echo "checking numpy inspection"
 coverage run -a ./pystrict3.py --import-any tests/examples-bad-external/13.py && exit 1
 echo "using a non-builtin module wrongly should not cause an error if not allowed to load it..."
-coverage run -a ./pystrict3.py --import-builtin tests/examples-bad-external/13.py || exit 1
+coverage run -a ./pystrict3.py -v --import-builtin tests/examples-bad-external/13.py || exit 1
 echo "using a non-builtin module wrongly should not cause an error if not allowed to load it..."
 coverage run -a ./pystrict3.py tests/examples-bad-external/13.py || exit 1
 

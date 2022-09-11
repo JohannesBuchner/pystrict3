@@ -460,13 +460,6 @@ def main(filenames, module_load_policy='none', allow_variable_reuse=False):
     """ Verify python files listed in filenames """
     known_functions = dict()
     FuncLister.load_builtin_functions()
-    logger = logging.getLogger('pystrict3.nameassign')
-    handler = logging.StreamHandler(sys.stderr)
-    handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('[%(levelname)s] %(message)s')
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    logger.setLevel(logging.DEBUG)
 
     asts = []
     for filename in filenames:
