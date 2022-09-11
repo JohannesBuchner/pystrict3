@@ -486,4 +486,4 @@ class ModuleCallLister(ast.NodeVisitor):
                 min_args, max_args, min_call_args, '+' if may_have_more else ''))
             sys.exit(1)
         else:
-            print('call(%s.%s with %d%s args): OK' % (module_name, funcname, min_call_args, '+' if may_have_more else ''))
+            self.log.debug('call(%s.%s with %d%s args): OK' % (module_name, funcname, min_call_args, '+' if may_have_more else ''))
