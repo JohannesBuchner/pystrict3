@@ -219,8 +219,8 @@ class NameAssignVerifier():
 
     def assert_unknown(self, name, known, lineno):
         """unified error message verifying `name` is in set `known`"""
-        assert name is not None
         self.log.debug("assert_unknown: %s, %s", name, lineno)
+        assert name is not None
         # the nested if allows deleting builtins and re-defining them afterwards
         if name in known:
             previous_state, previous_lineno = known[name]
@@ -390,7 +390,6 @@ class NameAssignVerifier():
             for id in get_deleted_ids(node):
                 self.log.debug('%s+node deleted id: %s', '  '*depth, id)
                 known_nodes[id] = (False, node.lineno)
-                del known_nodes[id]
 
             if hasattr(node, 'generators'):
                 # ignore result, because variables do not leak out
@@ -430,8 +429,7 @@ class NameAssignVerifier():
             else:
                 for arg in getattr(node, 'args', []) + getattr(node, 'keywords', []):
                     for id in get_all_ids(arg):
-                        self.log.debug('checking call arg: %s', id)
-                        if id not in known_nodes:
+                        if id not in known_nodes or known_nodes[id][0] == False:
                             self.variable_unknown_found(node.lineno, id)
                         known_nodes2[id] = (True, node.lineno)
             if hasattr(node, 'body'):
