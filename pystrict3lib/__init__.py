@@ -182,6 +182,7 @@ class FuncDocVerifier(ast.NodeVisitor):
 
         documented_parameters = list_documented_parameters(func_docstring)
         function_arguments = [arg.arg for arg in arguments.args]
+        variable_length = arguments.vararg or arguments.kwonlyargs
         if node in self.class_methods:
             arguments = function_arguments[1:]
         else:
@@ -199,6 +200,12 @@ class FuncDocVerifier(ast.NodeVisitor):
                 sys.stderr.write('%s:%d: ERROR: argument "%s" of "%s" missing in docstring\n' % (
                     self.filename, node.lineno, arg, node.name))
                 self.undocumented_parameters_found |= True
+        if not variable_length:
+            for arg in documented_parameters:
+                if not arg.startswith('*') and arg not in arguments:
+                    sys.stderr.write('%s:%d: ERROR: "%s" in docstring is not an argument of "%s"\n' % (
+                        self.filename, node.lineno, arg, node.name))
+                    self.undocumented_parameters_found |= True
 
         all_returns = [
             (return_tuple_length, return_node)
