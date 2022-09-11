@@ -1,5 +1,18 @@
 #!/usr/bin/env python3
 """
+pystrict3: a Python3 code plausibility checker
+"""
+
+import ast
+import sys
+import builtins
+import logging
+import operator
+
+from .funcchecker import FuncLister, list_documented_parameters, max_documented_returns, CallLister, ModuleCallLister
+from .classchecker import ClassPropertiesLister
+
+"""
 BSD 2-Clause License
 
 Copyright (c) 2020, Johannes Buchner
@@ -28,29 +41,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 
-import ast
-import sys
-import builtins
-import logging
-import operator
-
-from .funcchecker import FuncLister, list_documented_parameters, max_documented_returns, CallLister, ModuleCallLister
-from .classchecker import ClassPropertiesLister
 first_item_getter = operator.itemgetter(0)
 
 preknown = set(builtins.__dict__).union({'__doc__', '__file__', '__name__', '__annotations__', '__dict__', '__builtins__'})
 
-"""
-def flat_walk(node):
-    yield node
-    if not isinstance(node, ast.FunctionDef) and not isinstance(node, ast.AsyncFunctionDef) and not isinstance(node, ast.ClassDef) and not isinstance(node, ast.Lambda) \
-            and not isinstance(node, ast.Import) and not isinstance(node, ast.ImportFrom):
-
-        for child in ast.iter_child_nodes(node):
-            yield from flat_walk(child)
-"""
 
 def get_arg_ids(node):
+    """List variable names mentioned in a node."""
     if hasattr(node, 'args') and isinstance(node.args, ast.arguments):
         args = node.args
         for arg in args.args:
@@ -63,7 +60,9 @@ def get_arg_ids(node):
         if getattr(args, 'kwarg', None) is not None:
             yield args.kwarg.arg
 
+
 def get_assigned_ids(node):
+    """List variable names being assigned in a node."""
     if isinstance(node, ast.Name) and not isinstance(node.ctx, ast.Del):
         yield node.id
     if hasattr(node, 'target'):
@@ -81,7 +80,9 @@ def get_assigned_ids(node):
         for el in node.elts:
             yield from get_assigned_ids(el)
 
+
 def get_deleted_ids(node):
+    """List variable names being deleted in a node."""
     if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Del):
         yield node.id
     if hasattr(node, 'target'):
@@ -90,12 +91,14 @@ def get_deleted_ids(node):
         for target in node.targets:
             yield from get_deleted_ids(target)
 
+
 def is_container(node):
+    """Check if node contains code."""
     return isinstance(node, ast.FunctionDef) or isinstance(node, ast.AsyncFunctionDef) or isinstance(node, ast.ClassDef) or isinstance(node, ast.Lambda) or isinstance(node, ast.Expr) or isinstance(node, ast.Call)
 
 
 def get_all_ids(node):
-    """get all ids defined in names, tuples and targets here
+    """Get all ids defined in names, tuples and targets here.
 
     :param node: AST node
     """
@@ -136,6 +139,7 @@ def get_all_ids(node):
         yield from get_all_ids(node.value)
 
 def block_terminates(statements):
+    """Check if code block stops the execution."""
     for statement in statements:
         if isinstance(statement, ast.Return):
             return True
@@ -147,6 +151,7 @@ def block_terminates(statements):
 
 class FuncDocVerifier(ast.NodeVisitor):
     """Compares parameter names in function definition with docstring."""
+
     def __init__(self, filename):
         self.filename = filename
         self.log = logging.getLogger('pystrict3.funcdoc')
@@ -160,13 +165,13 @@ class FuncDocVerifier(ast.NodeVisitor):
             # look for methods:
             if isinstance(child, ast.FunctionDef):
                 self.class_methods.append(child)
-    
+
     def visit_FunctionDef(self, node):
         arguments = node.args
         module_docstring = ast.get_docstring(node)
         if module_docstring is None:
             return
-        
+
         documented_parameters = list_documented_parameters(module_docstring)
         function_arguments = [arg.arg for arg in arguments.args]
         if node in self.class_methods:
@@ -187,7 +192,10 @@ class FuncDocVerifier(ast.NodeVisitor):
                     self.filename, node.lineno, arg, node.name))
                 self.undocumented_parameters_found |= True
 
-        all_returns = [(return_tuple_length, return_node) for return_tuple_length, return_node in self.walk_tree(node.body) if return_tuple_length > 1]
+        all_returns = [
+            (return_tuple_length, return_node)
+            for return_tuple_length, return_node in self._walk_tree(node.body)
+            if return_tuple_length > 1]
         if len(all_returns) == 0:
             return
         return_tuple_length, return_node = max(all_returns, key=first_item_getter)
@@ -197,15 +205,17 @@ class FuncDocVerifier(ast.NodeVisitor):
             self.log.debug("%s returns at most %s values; %d documented", node.name, return_tuple_length, num_documented_returns)
             if return_tuple_length > num_documented_returns:
                 names = [getattr(el, 'id', 'var') for el in return_node.elts]
-                sys.stderr.write('%s:%d: ERROR: function "%s" does not document return of %d elements as in line %d: (%s)\n' % (
-                    self.filename, node.lineno, node.name, return_tuple_length, return_node.lineno, ', '.join(names)))
-                self.undocumented_returns_found |= True
+                if num_documented_returns == 1:
+                    sys.stderr.write('%s:%d: WARNING: function "%s" may not document return of %d elements as in line %d: (%s)\n' % (
+                        self.filename, node.lineno, node.name, return_tuple_length, return_node.lineno, ', '.join(names)))
+                else:
+                    sys.stderr.write('%s:%d: ERROR: function "%s" does not document return of %d elements as in line %d: (%s)\n' % (
+                        self.filename, node.lineno, node.name, return_tuple_length, return_node.lineno, ', '.join(names)))
+                    self.undocumented_returns_found |= True
 
-
-    def walk_tree(self, nodes):
+    def _walk_tree(self, nodes):
         for node in nodes:
             if isinstance(node, ast.Return):
-                #print("  inside:", node, node.value, len(getattr(node.value, 'elts', [])))
                 yield len(getattr(node.value, 'elts', [])), node.value
 
             if hasattr(node, 'body'):
@@ -220,6 +230,15 @@ class FuncDocVerifier(ast.NodeVisitor):
 
 
 class NameAssignVerifier():
+    """Verify name definitions and access.
+
+    Makes sure variables that are defined have not been defined before,
+    and variables being deleted have been defined before.
+
+    :param filename: file name
+    :param allow_variable_reuse: allow redefinition of variables
+    """
+
     def __init__(self, filename, allow_variable_reuse=False):
         self.filename = filename
         self.log = logging.getLogger('pystrict3.nameassign')
@@ -231,17 +250,18 @@ class NameAssignVerifier():
         self.known_checked = 0
 
     def variable_unknown_found(self, lineno, name):
+        """Report a undefined variable `name` was found in line `lineno`."""
         sys.stderr.write('%s:%d: ERROR: Variable unknown: "%s"\n' % (self.filename, lineno, name))
         self.found_variable_unknown |= True
         raise Exception(name)
 
     def assert_unknown(self, name, known, lineno, override_with_builtins=False):
-        """unified error message verifying `name` is in set `known`"""
+        """Report error if `name` is already in set `known`."""
         self.log.debug("assert_unknown: %s, %s", name, lineno)
         assert name is not None
         # the nested if allows deleting builtins and re-defining them afterwards
         if name in known:
-            previous_state, previous_lineno = known[name]
+            previous_state, _ = known[name]
             if name in preknown:
                 if not override_with_builtins:
                     sys.stderr.write('%s:%d: ERROR: Overwriting builtin variable: "%s"\n' % (
@@ -250,7 +270,7 @@ class NameAssignVerifier():
             elif name == '_':
                 # throwaway variable is allowed to be overridden
                 pass
-            elif previous_state is not None and previous_state == True:
+            elif previous_state is not None and previous_state:
                 self.found_variable_reused |= True
                 if self.allow_variable_reuse:
                     sys.stderr.write('%s:%d: WARNING: Variable "%s" set previously in line %d may have changed meaning\n' % (
@@ -262,8 +282,7 @@ class NameAssignVerifier():
             self.unknown_checked += 1
 
     def check_new_identifiers(self, elements, node, known):
-        """add newly defined variables and verify that the accessed ones are defined in known"""
-        #old_known = dict(**known)
+        """Add newly defined variables and verify that the accessed ones are defined in known"""
         add = {}
         forget = set()
         self.log.debug('check_new_identifiers: known: %s', known.keys() - preknown)
@@ -280,7 +299,8 @@ class NameAssignVerifier():
                     elif hasattr(name, 'name'):
                         name = name.name
                     self.log.debug('check_new_identifiers: name %s', name)
-                    self.assert_unknown(name, known, el.lineno,
+                    self.assert_unknown(
+                        name, known, el.lineno,
                         override_with_builtins=getattr(node, 'module', '') == 'builtins')
                     name = name.split('.')[0]
                     add_here[name] = el.lineno
@@ -292,7 +312,6 @@ class NameAssignVerifier():
                     for name in get_assigned_ids(target):
                         if isinstance(getattr(target, 'ctx'), ast.Del):
                             self.log.debug('check_new_identifiers: del target name %s', name)
-                            #print("-%s" % name)
                             if name in add:
                                 del add[name]
                             if name in add_here:
@@ -368,11 +387,11 @@ class NameAssignVerifier():
 
         for name, lineno in add.items():
             if name not in known:
-                #print('+%s' % name)
+                # print('+%s' % name)
                 known[name] = lineno
         for name in forget:
             if name in known:
-                #print('-%s' % name)
+                # print('-%s' % name)
                 del known[name]
         self.log.debug('known: %s', known.keys() - preknown)
 
@@ -381,7 +400,7 @@ class NameAssignVerifier():
         known_nodes = dict(**preknown)
         terminated = False
         for node in nodes:
-            #print(); import pprintast; pprintast.pprintast(node)
+            # print(); import pprintast; pprintast.pprintast(node)
             if isinstance(node, ast.Return):
                 terminated |= True
                 break
@@ -392,7 +411,7 @@ class NameAssignVerifier():
             self.log.debug('%swalk tree: %s[args:%s, assigned:%s] (terminating: %d)', '  '*depth, type(node).__name__, set(get_arg_ids(node)), set(get_assigned_ids(node)), terminated)
 
             # modified = getattr(node, 'decorator_list', []) != []
-            
+
             if not is_container(node):
                 self.check_new_identifiers([node], node, dict(**known_nodes))
             elif hasattr(node, 'name'):
@@ -429,11 +448,11 @@ class NameAssignVerifier():
                 # ignore result, because variables do not leak out
                 self.walk_tree([node.value], dict(**known_nodes), depth+1)
                 # self.check_new_identifiers([node.value], node, dict(**known_nodes))
-            #if hasattr(node, 'target'):
-            #    for name in get_assigned_ids(node.target):
-            #        self.log.debug('+node target %s', name)
-            #        self.assert_unknown(name, known_nodes, node.lineno)
-            #        known_nodes[name] = (True, node.lineno)
+            # if hasattr(node, 'target'):
+            #     for name in get_assigned_ids(node.target):
+            #         self.log.debug('+node target %s', name)
+            #         self.assert_unknown(name, known_nodes, node.lineno)
+            #         known_nodes[name] = (True, node.lineno)
 
             nodes_to_add = {}
             nbranches = 0
@@ -503,14 +522,14 @@ class NameAssignVerifier():
                             self.log.debug('%s+%s (from final)', '  '*depth, name)
                             known_nodes[name] = var
                 self.log.debug('%s+nodes from final: %s', '  '*depth, members)
-            
+
             self.log.debug('%scurrent knowledge: %s', '  '*depth, known_nodes.keys() - preknown.keys())
 
         return known_nodes
 
 
 def main(filenames, module_load_policy='none', allow_variable_reuse=False):
-    """ Verify python files listed in filenames
+    """Verify python files listed in filenames.
 
     :param filenames: files to analyse
     :param module_load_policy: passed to ModuleCallLister
@@ -533,11 +552,11 @@ def main(filenames, module_load_policy='none', allow_variable_reuse=False):
         mcl = ModuleCallLister(filename=filename, load_policy=module_load_policy)
         mcl.visit(a)
         total_checked_calls += mcl.checked_calls
-        
+
         funcs = FuncLister(filename=filename)
         funcs.visit(a)
         known_functions.update(funcs.known_functions)
-        
+
         asts.append((filename, a))
         del filename, a
 
@@ -548,7 +567,7 @@ def main(filenames, module_load_policy='none', allow_variable_reuse=False):
         cl = CallLister(filename=filename, known_functions=known_functions)
         cl.visit(a)
         total_checked_calls += cl.checked_calls
-        
+
         print("%s: checking variables ..." % filename)
         nameassigner = NameAssignVerifier(filename, allow_variable_reuse=allow_variable_reuse)
         nameassigner.walk_tree(a.body, known)

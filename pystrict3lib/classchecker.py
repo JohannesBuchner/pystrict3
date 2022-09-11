@@ -38,8 +38,17 @@ internal_members = set(dir(object)).union(dir(classmethod)).union(dir(lambda x: 
 
 class MethodCallLister(ast.NodeVisitor):
     """Verifies all calls against call signatures in known_methods.
-    Unknown functions are not verified."""
+
+    Unknown functions are not verified.
+    """
+
     def __init__(self, filename, class_name, known_methods, known_staticmethods):
+        """
+        :param filename: file name
+        :param class_name: class name
+        :param known_methods: list of methods
+        :param known_staticmethods: list of static methods
+        """
         self.filename = filename
         self.known_methods = known_methods
         self.known_staticmethods = known_staticmethods
@@ -50,10 +59,10 @@ class MethodCallLister(ast.NodeVisitor):
         self.generic_visit(node)
         if not (isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name) and node.func.value.id == 'self'):
             return
-        
+
         funcname = node.func.attr
         min_call_args, may_have_more = count_call_arguments(node)
-        
+
         if funcname in self.known_staticmethods:
             min_args, max_args = self.known_staticmethods[funcname]
             is_staticmethod = True
@@ -65,7 +74,7 @@ class MethodCallLister(ast.NodeVisitor):
         else:
             # this is already guaranteed by the ClassPropertiesLister
             return
-        
+
         if max_args >= 0 and min_call_args > max_args:
             sys.stderr.write('%s:%d: ERROR: Class "%s": %s "%s" (%d..%d arguments) called with too many (%d%s) arguments\n' % (
                 self.filename, node.lineno, self.class_name, 'static method' if is_staticmethod else 'method',
@@ -81,9 +90,12 @@ class MethodCallLister(ast.NodeVisitor):
 
 
 class ClassPropertiesLister(ast.NodeVisitor):
-    """Verifies that all class properties that are accessed inside a class
-    are set at some point in the same class."""
+    """Verifies accessed properties are set at some point in the same class."""
+
     def __init__(self, filename):
+        """
+        :param filename: file name
+        """
         self.filename = filename
         self.log = logging.getLogger('pystrict3.classchecker')
 
@@ -94,7 +106,7 @@ class ClassPropertiesLister(ast.NodeVisitor):
             or len(node.bases) > 0 and not (len(node.bases) == 1 and isinstance(node.bases[0], ast.Name) and node.bases[0].id == 'object') \
             or len(node.keywords) > 0 or len(node.decorator_list) > 0
         # standalone class
-        
+
         # collect all members
         known_attributes = set()
         known_members = set(internal_members)
@@ -109,7 +121,7 @@ class ClassPropertiesLister(ast.NodeVisitor):
                             self.log.debug("+%s.%s" % (node.name, name.id))
                             known_attributes.add(name.id)
             del child
-        
+
         # collect all assigns
         for child in ast.walk(node):
             if isinstance(child, ast.Attribute) and isinstance(child.value, ast.Name) and child.value.id == 'self' and isinstance(child.ctx, ast.Store):
@@ -136,7 +148,7 @@ class ClassPropertiesLister(ast.NodeVisitor):
         # verify class members
         funcs = FuncLister(filename=self.filename)
         funcs.visit(node)
-        
+
         MethodCallLister(
             filename=self.filename, class_name=node.name,
             known_methods=funcs.known_functions, known_staticmethods=funcs.known_staticmethods

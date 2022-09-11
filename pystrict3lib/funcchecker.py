@@ -1,5 +1,20 @@
 #!/usr/bin/env python3
 """
+Functions for checking the number of arguments of a function,
+verifying function calls to them, and checking the docstrings.
+"""
+
+import ast
+import sys
+import inspect
+import importlib
+import builtins
+import distutils.sysconfig
+import os
+from collections import defaultdict
+import logging
+
+"""
 BSD 2-Clause License
 
 Copyright (c) 2020, Johannes Buchner
@@ -25,21 +40,15 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 """
-
-import ast
-import sys
-import inspect
-import importlib
-import builtins
-import distutils.sysconfig
-import os
-from collections import defaultdict
-import logging
 
 
 def parse_builtin_signature(signature):
+    """Get minimum and maximum number of arguments.
+
+    :param signature: builtin function signature
+    :returns: min, max (or -1 if unknown)
+    """
     min_args = 0
     for param in signature.parameters.values():
         if param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD or param.kind == inspect.Parameter.POSITIONAL_ONLY:
@@ -51,32 +60,36 @@ def parse_builtin_signature(signature):
     for param in signature.parameters.values():
         if param.kind == inspect.Parameter.VAR_KEYWORD or param.kind == inspect.Parameter.VAR_POSITIONAL:
             return min_args, -1
-    
+
     max_args = len(signature.parameters)
     return min_args, max_args
 
 
 def count_function_min_arguments(arguments):
-    """ returns minimum number of arguments. """
+    """Count minimum number of arguments."""
     return len(arguments.args) - len(arguments.defaults)
 
 
 def count_function_max_arguments(arguments):
-    """ returns maximum number of arguments. If uncertain, returns -1. """
+    """Count maximum number of arguments.
+
+    If uncertain, returns -1.
+    """
     if arguments.vararg or arguments.kwarg:
         return -1
     return len(arguments.args) + len(arguments.kwonlyargs)
 
 
 def count_function_arguments(arguments):
-    """ returns minimum and maximum number of arguments. 
-    If uncertain, the maximum is -1. """
+    """Count minimum and maximum number of arguments.
+
+    If uncertain, the maximum is -1.
+    """
     return count_function_min_arguments(arguments), count_function_max_arguments(arguments)
 
 
 def count_call_arguments(call):
-    """ returns the number of arguments given to call, and 
-    a bool indicating whether that may be a lower limit """
+    """Count the number of arguments given to call, and whether that may be a lower limit."""
     may_have_more = False
     min_call_args = 0
     for arg in call.args:
@@ -94,22 +107,23 @@ def count_call_arguments(call):
 
 
 def strip_left_indent(s):
+    """Strip left padding of a multiline string `s`."""
     body_lines = s.split('\n')
     filled_lines = [line for line in body_lines if line.strip() != '']
     left_padding_to_remove = min(len(line) - len(line.lstrip()) for line in filled_lines)
     return '\n'.join(['' if line.strip() == '' else line[left_padding_to_remove:] for line in body_lines])
-    
+
 
 def list_documented_parameters(docstring):
-    """Extract a list of documented parameters from docstring
+    """Extract a list of documented parameters from docstring.
 
     support numpydoc-style, google-style and rst-style formats.
-    
+
     Parameters
     -----------
     docstring: str
         documentation string
-    
+
     Returns
     -------
     parameters: list
@@ -141,16 +155,16 @@ def list_documented_parameters(docstring):
 
 
 def max_documented_returns(docstring):
-    """Extract a list of documented return values from docstring
+    """Extract a list of documented return values from docstring.
 
     for numpydoc-style, get the number.
     google-style and rst-style formats do not provide this.
-    
+
     Parameters
     -----------
     docstring: str
         documentation string
-    
+
     Returns
     -------
     max_returns: int or None
@@ -176,18 +190,22 @@ def max_documented_returns(docstring):
 
 
 class FuncLister(ast.NodeVisitor):
-    """Compiles a list of all functions and class inits
-    with their call signatures.
-    
-    Result is in the known_functions attribute."""
+    """Compiles a list of all functions and class inits with their call signatures.
+
+    Result is in the known_functions attribute.
+    """
+
     def __init__(self, filename):
+        """
+        :param filename: file name
+        """
         self.filename = filename
         self.known_functions = dict(**FuncLister.KNOWN_BUILTIN_FUNCTIONS)
         self.known_staticmethods = {}
         self.log = logging.getLogger('pystrict3.funcchecker')
 
     KNOWN_BUILTIN_FUNCTIONS = {}
-    
+
     @staticmethod
     def load_builtin_functions():
         for f, func in builtins.__dict__.items():
@@ -205,7 +223,7 @@ class FuncLister(ast.NodeVisitor):
         else:
             min_args = 0
             max_args = -1
-        
+
         if node.name in self.known_functions:
             min_args_orig, max_args_orig = self.known_functions[node.name]
             min_combined_args = min(min_args, min_args_orig)
@@ -219,10 +237,10 @@ class FuncLister(ast.NodeVisitor):
             self.known_staticmethods[node.name] = (min_combined_args, max_combined_args)
         else:
             self.known_functions[node.name] = (min_combined_args, max_combined_args)
-        
+
         self.log.debug('function "%s" has %d..%d arguments' % (node.name, min_args, max_args))
         self.generic_visit(node)
-    
+
     def visit_ClassDef(self, node):
         # find the child that defines __init__
         if node.decorator_list == []:
@@ -230,14 +248,14 @@ class FuncLister(ast.NodeVisitor):
                 sys.stderr.write('%s:%d: ERROR: Class "%s" redefined\n' % (
                     self.filename, node.lineno, node.name))
                 sys.exit(1)
-            
+
             for child in ast.iter_child_nodes(node):
                 # look for __init__ method:
                 if not isinstance(child, ast.FunctionDef):
                     continue
-                if not child.name == '__init__': 
+                if not child.name == '__init__':
                     continue
-                
+
                 arguments = child.args
                 if len(arguments.args) >= 1 and arguments.args[0].arg == 'self':
                     min_args, max_args = count_function_arguments(arguments)
@@ -252,9 +270,15 @@ class FuncLister(ast.NodeVisitor):
 
 
 class CallLister(ast.NodeVisitor):
-    """Verifies all calls against call signatures in known_functions.
-    Unknown functions are not verified."""
+    """Verify calls against call signatures in known_functions."""
+
     def __init__(self, filename, known_functions):
+        """
+        :param filename: file name
+        :param known_functions: dict of function names with number of arguments (min, max).
+
+        Unknown functions are not verified.
+        """
         self.filename = filename
         self.known_functions = known_functions
         self.log = logging.getLogger('pystrict3.funcchecker')
@@ -264,13 +288,13 @@ class CallLister(ast.NodeVisitor):
         self.generic_visit(node)
         if not isinstance(node.func, ast.Name):
             return
-        
+
         funcname = node.func.id
         if funcname not in self.known_functions:
             return
         min_args, max_args = self.known_functions[funcname]
         min_call_args, may_have_more = count_call_arguments(node)
-        
+
         if max_args >= 0 and min_call_args > max_args:
             sys.stderr.write('%s:%d: ERROR: Function "%s" (%d..%d arguments) called with too many (%d%s) arguments\n' % (
                 self.filename, node.lineno, funcname, min_args, max_args, min_call_args, '+' if may_have_more else ''))
@@ -295,10 +319,14 @@ class ModuleCallLister(ast.NodeVisitor):
     Unknown functions are not verified."""
 
     def __init__(self, filename, load_policy='none'):
-        """ If load_policy is 'none', do not load any new modules.
-        if load_policy is 'builtins', load python libraries from the python 
-        standard library path.
-        if load_policy is 'all', try to load arbitrary python libraries."""
+        """Initialize.
+
+        :param filename: file name
+        :param load_policy: if 'none', do not load any new modules. 
+            if 'builtins', load python libraries from the python
+            standard library path. if 'all', try to load arbitrary 
+            python libraries as they are imported.
+        """
 
         self.filename = filename
         self.checked_calls = 0
@@ -344,6 +372,10 @@ class ModuleCallLister(ast.NodeVisitor):
     KNOWN_MODULES = {}
 
     def load_module(self, module_name):
+        """Load python module and store all function call signatures.
+
+        :param module_name: name of the module
+        """
         # if this is a submodule, try to handle by importing the parent
         parts = module_name.split('.')
         parent_module = '.'.join(parts[:-1])
@@ -381,6 +413,11 @@ class ModuleCallLister(ast.NodeVisitor):
             return None
 
     def get_function(self, module_name, funcname):
+        """Get a function from a module as a python object.
+
+        :param module_name: name of the module
+        :param module_name: funcname
+        """
         mod = ModuleCallLister.KNOWN_MODULES[module_name]
         assert mod is not None
 
@@ -393,17 +430,22 @@ class ModuleCallLister(ast.NodeVisitor):
                 else:
                     del mod
                     mod = subm
-        
+
         return mod
 
     def lazy_load_call(self, module_name, funcname):
+        """Get min and max function from a module as a python object.
+
+        :param module_name: name of the module
+        :param module_name: funcname
+        """
         functions = ModuleCallLister.KNOWN_CALLS[module_name]
         if funcname in functions:
             # use cached result
             return functions[funcname]
 
         func = self.get_function(module_name, funcname)
-        
+
         if inspect.isbuiltin(func) or inspect.isfunction(func):
             try:
                 min_args, max_args = parse_builtin_signature(inspect.signature(func))
@@ -470,7 +512,7 @@ class ModuleCallLister(ast.NodeVisitor):
             sys.stderr.write('%s:%d: ERROR: "%s.%s" is not in a known module\n' % (
                 self.filename, node.lineno, module_name, funcname))
             sys.exit(1)
-            
+
         signature = self.lazy_load_call(module_name, funcname)
         if signature is None:
             sys.stderr.write('%s:%d: ERROR: "%s.%s" is not a known function\n' % (
@@ -483,12 +525,12 @@ class ModuleCallLister(ast.NodeVisitor):
 
         if max_args >= 0 and min_call_args > max_args:
             sys.stderr.write('%s:%d: ERROR: function "%s.%s" (%d..%d arguments) called with too many (%d%s) arguments\n' % (
-                self.filename, node.lineno, module_name, funcname, 
+                self.filename, node.lineno, module_name, funcname,
                 min_args, max_args, min_call_args, '+' if may_have_more else ''))
             sys.exit(1)
         elif min_call_args < min_args and not may_have_more:
             sys.stderr.write('%s:%d: ERROR: function "%s.%s" (%d..%d arguments) called with too few (%d%s) arguments\n' % (
-                self.filename, node.lineno, module_name, funcname, 
+                self.filename, node.lineno, module_name, funcname,
                 min_args, max_args, min_call_args, '+' if may_have_more else ''))
             sys.exit(1)
         else:
