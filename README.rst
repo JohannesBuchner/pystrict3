@@ -19,31 +19,12 @@ can be used alongside linters and code format checkers (such as pylint and flake
 Assumptions
 -------------
 
-pystrict3 assumes unsurprising Python code, so
+pystrict3 assumes unsurprising Python code, and assumes no monkey patching,
+no magic attributes (__dict__, __local__) that alter classes and variables,
+and no builtins have been altered. Python 3.5 and above is required.
 
-* no monkey patching
-* no magic attributes (__dict__, __local__) that alter classes and variables
-* no altering builtins, etc.
-
-Python 3.5 and above is required.
-
-Rules
---------------
-
-pystrict3 enforces that variables are only assigned once. 
-This avoids shadowing and change of semantics of variables, and leads to cleaner, more idiomatic code
-with fewer side-effects. It also prevents overwriting python builtins.::
-
-    parse = parse(foo)    ## bad
-    node = get_node()
-    node.foo()            ## ok, modification
-    node += 3             ## ok, modification
-
-    def format(...):      ## bad, format is a python keyword
-    
-    import requests, html
-    
-    html = requests.get(url)  ## bad: overwrites imported package name
+Function calls
+----------------
 
 pystrict3 checks that functions are called with the
 right number of arguments. This catches bugs before execution, for example
@@ -99,6 +80,34 @@ when call signatures change to include an additional argument::
                 (self.center[0],self.center[1],self.radius_x,self.radius_y),
                 "    style=\"fill:%s;stroke:%s;stroke-width:%d\"/>\n" % (colorstr(self.fill_color),colorstr(self.line_color),self.line_width)]
             # error above: self.radius_x vs self.radiusx
+
+pystrict3 also checks docstrings for documented arguments and returns
+(numpydoc, rst and google-style is supported).
+It does not give an error if no docstrings are present. 
+However, if only part of the arguments are documented, it gives an 
+error pointing out the missing arguments to document.
+
+Redefined variable
+-------------------
+
+pystrict3 (--allow-redefining disables this behaviour) can enforce that 
+variables are only assigned once. 
+This avoids changing the meaning of variables, and leads to cleaner, more idiomatic code
+with fewer side-effects.
+
+It also prevents overwriting python builtins. Some examples::
+
+    parse = parse(foo)    ## bad
+    node = get_node()
+    node.foo()            ## ok, modification
+    node += 3             ## ok, modification
+
+    def format(...):      ## bad, format is a python keyword
+    
+    import requests, html
+    
+    html = requests.get(url)  ## bad: overwrites imported package name
+
 
 
 Contributing
@@ -241,4 +250,3 @@ How to write to pystrict3 compliance:
                 return objs
 
 * Instead of assigning to __doc__, move the docstring to the start of the file.
-

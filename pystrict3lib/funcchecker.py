@@ -36,6 +36,7 @@ import builtins
 import distutils.sysconfig
 import os
 from collections import defaultdict
+import logging
 
 
 def parse_builtin_signature(signature):
@@ -46,6 +47,7 @@ def parse_builtin_signature(signature):
                 min_args += 1
         else:
             break
+        del param
     for param in signature.parameters.values():
         if param.kind == inspect.Parameter.VAR_KEYWORD or param.kind == inspect.Parameter.VAR_POSITIONAL:
             return min_args, -1
@@ -83,6 +85,7 @@ def count_call_arguments(call):
             may_have_more |= True
             continue
         min_call_args += 1
+        del arg
     for arg in call.keywords:
         if arg.arg is None:  # **kwargs
             may_have_more |= True
@@ -178,6 +181,7 @@ class FuncLister(ast.NodeVisitor):
         self.filename = filename
         self.known_functions = dict(**FuncLister.KNOWN_BUILTIN_FUNCTIONS)
         self.known_staticmethods = {}
+        self.log = logging.getLogger('pystrict3.funcchecker')
 
     KNOWN_BUILTIN_FUNCTIONS = {}
     
@@ -213,7 +217,7 @@ class FuncLister(ast.NodeVisitor):
         else:
             self.known_functions[node.name] = (min_combined_args, max_combined_args)
         
-        print('function "%s" has %d..%d arguments' % (node.name, min_args, max_args))
+        self.log.debug('function "%s" has %d..%d arguments' % (node.name, min_args, max_args))
         self.generic_visit(node)
     
     def visit_ClassDef(self, node):
@@ -239,7 +243,7 @@ class FuncLister(ast.NodeVisitor):
                         max_args -= 1
                     min_args -= 1
                     self.known_functions[node.name] = (min_args, max_args)
-                    print('class "%s" init has %d..%d arguments' % (node.name, min_args, max_args))
+                    self.log.debug('class "%s" init has %d..%d arguments' % (node.name, min_args, max_args))
 
         self.generic_visit(node)
 
@@ -250,6 +254,7 @@ class CallLister(ast.NodeVisitor):
     def __init__(self, filename, known_functions):
         self.filename = filename
         self.known_functions = known_functions
+        self.log = logging.getLogger('pystrict3.funcchecker')
 
     def visit_Call(self, node):
         self.generic_visit(node)
@@ -271,7 +276,7 @@ class CallLister(ast.NodeVisitor):
                 self.filename, node.lineno, funcname, min_args, max_args, min_call_args, '+' if may_have_more else ''))
             sys.exit(1)
         else:
-            print("call(%s with %d%s args): OK" % (funcname, min_call_args, '+' if may_have_more else ''))
+            self.log.debug("call(%s with %d%s args): OK" % (funcname, min_call_args, '+' if may_have_more else ''))
 
 
 BUILTIN_MODULES = []
@@ -303,6 +308,7 @@ class ModuleCallLister(ast.NodeVisitor):
         # if self.load_policy != 'all':
         #     print("allowed modules:", sorted(self.approved_module_names))
         self.used_module_names = {}
+        self.log = logging.getLogger('pystrict3.funcchecker')
 
     def visit_Import(self, node):
         for alias in node.names:
@@ -356,16 +362,16 @@ class ModuleCallLister(ast.NodeVisitor):
                 loadable_std_dir = os.path.exists(os.path.join(std_lib, module_name.split('.')[0], '__init__.py'))
                 if not loadable_std_file and not loadable_std_dir:
                     # do not load arbitrary modules
-                    print('skipping loading module "%s" outside standard lib' % module_name)
+                    self.log.debug('skipping loading module "%s" outside standard lib' % module_name)
                     return
 
         try:
-            print('+loading module %s' % module_name)
+            self.log.info('+loading module %s' % module_name)
             mod = importlib.import_module(module_name)
             ModuleCallLister.KNOWN_MODULES[module_name] = mod
             return mod
         except ImportError:
-            print('WARNING: loading module %s failed' % module_name)
+            self.log.warning('WARNING: loading module %s failed' % module_name)
             return None
 
     def get_function(self, module_name, funcname):
@@ -395,21 +401,21 @@ class ModuleCallLister(ast.NodeVisitor):
         if inspect.isbuiltin(func) or inspect.isfunction(func):
             try:
                 min_args, max_args = parse_builtin_signature(inspect.signature(func))
-                print('+function: "%s.%s" (%d..%d) arguments' % (module_name, funcname, min_args, max_args))
+                self.log.debug('+function: "%s.%s" (%d..%d) arguments' % (module_name, funcname, min_args, max_args))
             except ValueError:
                 min_args, max_args = 0, -1
-                print('+uninspectable callable: "%s.%s"' % (module_name, funcname))
+                self.log.debug('+uninspectable callable: "%s.%s"' % (module_name, funcname))
         elif inspect.isclass(func):
             min_args, max_args = parse_builtin_signature(inspect.signature(func.__init__))
             # remove self from arguments, as it is supplied by Python
             if max_args > 0:
                 max_args -= 1
             min_args -= 1
-            print('+class: "%s.%s" (%d..%d) arguments' % (module_name, funcname, min_args, max_args))
+            self.log.debug('+class: "%s.%s" (%d..%d) arguments' % (module_name, funcname, min_args, max_args))
         elif hasattr(func, '__call__'):
             # some type we do not understand, like numpy ufuncs
             min_args, max_args = 0, -1
-            print('+uninspectable callable: "%s.%s"' % (module_name, funcname))
+            self.log.debug('+uninspectable callable: "%s.%s"' % (module_name, funcname))
         else:
             # not callable
             return
@@ -447,11 +453,11 @@ class ModuleCallLister(ast.NodeVisitor):
 
         del module_alias
         if self.load_policy in ('builtin', 'none') and module_name not in self.approved_module_names:
-            print('skipping call into unapproved module "%s"' % module_name)
+            self.log.debug('skipping call into unapproved module "%s"' % module_name)
             return
 
         if ModuleCallLister.KNOWN_MODULES[module_name] is None:
-            print('skipping call into not loaded module "%s"' % module_name)
+            self.log.debug('skipping call into not loaded module "%s"' % module_name)
             return
 
         if self.get_function(module_name, funcname) is None:

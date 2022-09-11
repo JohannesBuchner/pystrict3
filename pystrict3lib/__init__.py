@@ -149,6 +149,13 @@ class FuncDocVerifier(ast.NodeVisitor):
         self.log = logging.getLogger('pystrict3.funcdoc')
         self.undocumented_parameters_found = False
         self.undocumented_returns_found = False
+        self.class_methods = []
+
+    def visit_ClassDef(self, node):
+        for child in ast.iter_child_nodes(node):
+            # look for methods:
+            if isinstance(child, ast.FunctionDef):
+                self.class_methods.append(child)
     
     def visit_FunctionDef(self, node):
         arguments = node.args
@@ -158,15 +165,18 @@ class FuncDocVerifier(ast.NodeVisitor):
         
         documented_parameters = list_documented_parameters(module_docstring)
         function_arguments = [arg.arg for arg in arguments.args]
+        if node in self.class_methods:
+            arguments = function_arguments[1:]
+        else:
+            arguments = function_arguments
+        del function_arguments
         if len(documented_parameters) == 0:
-            if len(function_arguments) > 0:
+            if len(arguments) > 0:
                 sys.stderr.write('%s:%d: WARNING: function "%s" does not have any parameter docs\n' % (
                     self.filename, node.lineno, node.name))
             return
-        for arg in function_arguments:
+        for arg in arguments:
             if arg not in documented_parameters:
-                print("Function %s has arguments: %s" % (node.name, function_arguments))
-                print("but only these are documented: %s" % (documented_parameters))
                 sys.stderr.write('%s:%d: ERROR: argument "%s" of "%s" missing in docstring\n' % (
                     self.filename, node.lineno, arg, node.name))
                 self.undocumented_parameters_found |= True
@@ -212,12 +222,12 @@ class NameAssignVerifier():
         self.allow_variable_reuse = allow_variable_reuse
         self.found_builtin_overwritten = False
 
-    def variable_unknown_found(self, lineno, id):
-        sys.stderr.write('%s:%d: ERROR: Variable unknown: "%s"\n' % (self.filename, lineno, id))
+    def variable_unknown_found(self, lineno, name):
+        sys.stderr.write('%s:%d: ERROR: Variable unknown: "%s"\n' % (self.filename, lineno, name))
         self.found_variable_unknown |= True
-        raise Exception(id)
+        raise Exception(name)
 
-    def assert_unknown(self, name, known, lineno):
+    def assert_unknown(self, name, known, lineno, override_with_builtins=False):
         """unified error message verifying `name` is in set `known`"""
         self.log.debug("assert_unknown: %s, %s", name, lineno)
         assert name is not None
@@ -225,13 +235,13 @@ class NameAssignVerifier():
         if name in known:
             previous_state, previous_lineno = known[name]
             if name in preknown:
-                sys.stderr.write('%s:%d: ERROR: Overwriting builtin variable: "%s"\n' % (
-                    self.filename, lineno, name))
-                self.found_builtin_overwritten |= True
-                raise Exception(name)
-
-            if name == '_':
-                # throwaway variable is allowed
+                if not override_with_builtins:
+                    sys.stderr.write('%s:%d: ERROR: Overwriting builtin variable: "%s"\n' % (
+                        self.filename, lineno, name))
+                    self.found_builtin_overwritten |= True
+                    raise Exception(name)
+            elif name == '_':
+                # throwaway variable is allowed to be overridden
                 pass
             elif previous_state is not None and previous_state == True:
                 self.found_variable_reused |= True
@@ -263,7 +273,8 @@ class NameAssignVerifier():
                     elif hasattr(name, 'name'):
                         name = name.name
                     self.log.debug('check_new_identifiers: name %s', name)
-                    self.assert_unknown(name, known, el.lineno)
+                    self.assert_unknown(name, known, el.lineno,
+                        override_with_builtins=getattr(node, 'module', '') == 'builtins')
                     name = name.split('.')[0]
                     add_here[name] = el.lineno
                 del name, names
@@ -274,7 +285,7 @@ class NameAssignVerifier():
                     for id in get_assigned_ids(target):
                         if isinstance(getattr(target, 'ctx'), ast.Del):
                             self.log.debug('check_new_identifiers: del target id %s', id)
-                            print("-%s" % id)
+                            #print("-%s" % id)
                             if id in add:
                                 del add[id]
                             if id in add_here:
@@ -349,11 +360,11 @@ class NameAssignVerifier():
 
         for id, lineno in add.items():
             if id not in known:
-                print('+%s' % id)
+                #print('+%s' % id)
                 known[id] = lineno
         for id in forget:
             if id in known:
-                print('-%s' % id)
+                #print('-%s' % id)
                 del known[id]
         self.log.debug('known: %s', known.keys() - preknown)
 

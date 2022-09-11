@@ -28,6 +28,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 
+import logging
 import ast
 import sys
 from .funcchecker import FuncLister, count_call_arguments
@@ -43,6 +44,7 @@ class MethodCallLister(ast.NodeVisitor):
         self.known_methods = known_methods
         self.known_staticmethods = known_staticmethods
         self.class_name = class_name
+        self.log = logging.getLogger('pystrict3.classchecker')
 
     def visit_Call(self, node):
         self.generic_visit(node)
@@ -75,7 +77,7 @@ class MethodCallLister(ast.NodeVisitor):
                 funcname, min_args, max_args, min_call_args, '+' if may_have_more else ''))
             sys.exit(1)
         else:
-            print("call(%s.%s with %d%s args): OK" % (self.class_name, funcname, min_call_args, '+' if may_have_more else ''))
+            self.log.debug("call(%s.%s with %d%s args): OK" % (self.class_name, funcname, min_call_args, '+' if may_have_more else ''))
 
 
 class ClassPropertiesLister(ast.NodeVisitor):
@@ -83,6 +85,7 @@ class ClassPropertiesLister(ast.NodeVisitor):
     are set at some point in the same class."""
     def __init__(self, filename):
         self.filename = filename
+        self.log = logging.getLogger('pystrict3.classchecker')
 
     def visit_ClassDef(self, node):
         self.generic_visit(node)
@@ -97,31 +100,33 @@ class ClassPropertiesLister(ast.NodeVisitor):
         known_members = set(internal_members)
         for child in ast.iter_child_nodes(node):
             if isinstance(child, ast.FunctionDef):
-                print("+%s.%s()" % (node.name, child.name))
+                self.log.debug("+%s.%s()" % (node.name, child.name))
                 known_members.add(child.name)
             if isinstance(child, ast.Assign):
                 for target in child.targets:
                     for name in ast.walk(target):
                         if isinstance(name, ast.Name):
-                            print("+%s.%s" % (node.name, name.id))
+                            self.log.debug("+%s.%s" % (node.name, name.id))
                             known_attributes.add(name.id)
+            del child
         
         # collect all assigns
         for child in ast.walk(node):
             if isinstance(child, ast.Attribute) and isinstance(child.value, ast.Name) and child.value.id == 'self' and isinstance(child.ctx, ast.Store):
                 known_attributes.add(child.attr)
-        
+            del child
+
         for child in ast.walk(node):
             if isinstance(child, ast.Attribute) and isinstance(child.value, ast.Name) and child.value.id == 'self' and isinstance(child.ctx, ast.Load):
                 if child.attr in known_attributes:
-                    print("accessing attribute %s.%s: OK" % (node.name, child.attr))
+                    self.log.debug("accessing attribute %s.%s: OK" % (node.name, child.attr))
                     continue
                 if child.attr in known_members:
-                    print("accessing member %s.%s: OK" % (node.name, child.attr))
+                    self.log.debug("accessing member %s.%s: OK" % (node.name, child.attr))
                     continue
 
                 if derived_class:
-                    print("accessing unknown member %s.%s: possibly OK, derived class" % (node.name, child.attr))
+                    self.log.debug("accessing unknown member %s.%s: possibly OK, derived class" % (node.name, child.attr))
                     continue
 
                 sys.stderr.write('%s:%d: ERROR: accessing unknown class attribute "%s.%s"\n' % (
