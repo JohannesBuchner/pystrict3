@@ -207,9 +207,9 @@ class FuncDocVerifier(ast.NodeVisitor):
         return_tuple_length, return_node = max(all_returns, key=first_item_getter)
         if return_tuple_length > 1:
             # see if a return tuple is documented
-            num_documented_returns = max_documented_returns(func_docstring) or 1
-            self.log.debug("%s returns at most %s values; %d documented", node.name, return_tuple_length, num_documented_returns)
-            if return_tuple_length > num_documented_returns:
+            num_documented_returns = max_documented_returns(func_docstring)
+            self.log.debug("%s returns at most %s values; %s documented", node.name, return_tuple_length, num_documented_returns)
+            if num_documented_returns is not None and return_tuple_length > num_documented_returns:
                 names = [getattr(el, 'id', 'var') for el in return_node.elts]
                 if num_documented_returns == 1:
                     sys.stderr.write('%s:%d: WARNING: function "%s" may not document return of %d elements as in line %d: (%s)\n' % (

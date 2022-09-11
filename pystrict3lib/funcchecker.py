@@ -107,7 +107,10 @@ def count_call_arguments(call):
 
 
 def strip_left_indent(s):
-    """Strip left padding of a multiline string `s`."""
+    """Strip left padding of a multiline string `s`.
+
+    :param s: string
+    """
     body_lines = s.split('\n')
     filled_lines = [line for line in body_lines if line.strip() != '']
     left_padding_to_remove = min(len(line) - len(line.lstrip()) for line in filled_lines)
@@ -413,7 +416,7 @@ class ModuleCallLister(ast.NodeVisitor):
         """Get a function from a module as a python object.
 
         :param module_name: name of the module
-        :param module_name: funcname
+        :param funcname: function name
         """
         mod = ModuleCallLister.KNOWN_MODULES[module_name]
         assert mod is not None
@@ -434,7 +437,8 @@ class ModuleCallLister(ast.NodeVisitor):
         """Get min and max function from a module as a python object.
 
         :param module_name: name of the module
-        :param module_name: funcname
+        :param funcname: function name
+        :returns: min, max
         """
         functions = ModuleCallLister.KNOWN_CALLS[module_name]
         if funcname in functions:
