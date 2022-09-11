@@ -186,7 +186,7 @@ class FuncDocVerifier(ast.NodeVisitor):
             arguments = function_arguments
         del function_arguments
         if len(documented_parameters) == 0:
-            if len(arguments) > 0:
+            if len(arguments) > 0 and not node.name.startswith('_'):
                 sys.stderr.write('%s:%d: WARNING: function "%s" does not have any parameter docs\n' % (
                     self.filename, node.lineno, node.name))
             return
@@ -480,6 +480,10 @@ class NameAssignVerifier():
                         if name not in known_nodes or known_nodes[name][0] not in (True, None):
                             self.variable_unknown_found(node.lineno, name)
                         known_nodes2[name] = (True, node.lineno)
+            for withitem in getattr(node, 'items', []):
+                name = withitem.optional_vars
+                if name is not None:
+                    known_nodes2[name.id] = (True, node.lineno)
             if hasattr(node, 'body'):
                 body = node.body if isinstance(node.body, list) else [node.body]
                 members = self.walk_tree(body, known_nodes2, depth + 1)
@@ -491,7 +495,6 @@ class NameAssignVerifier():
                 self.log.debug('%s+nodes from body: %s', depthstr, nodes_to_add)
 
             for handler in getattr(node, 'handlers', []):
-                members = self.walk_tree(handler.body, known_nodes, depth + 1)
                 if not block_terminates(handler.body):
                     nbranches += 1
                     known_nodes2 = dict(**known_nodes)
@@ -501,6 +504,7 @@ class NameAssignVerifier():
                     for name, var in members.items():
                         if name not in known_nodes or known_nodes[name][0] != var[0]:
                             nodes_to_add[name] = (nodes_to_add.get(name, (0, None))[0] + 1, var)
+                members = self.walk_tree(handler.body, known_nodes2, depth + 1)
                 self.log.debug('%s+nodes from handlers: %s', depthstr, nodes_to_add)
 
             if getattr(node, 'orelse', None) is not None:

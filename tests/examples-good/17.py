@@ -23,7 +23,8 @@ with open(filename, mode) as bar:
         try:
             bar.write("check done.")
         except IOError as e:
-            pass
+            print(e)
 
+del bar
 bar = mode
 del bar
