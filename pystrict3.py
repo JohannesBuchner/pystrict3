@@ -69,9 +69,13 @@ if __name__ == '__main__':
         help="""Also load any modules specified in import statements to check function signatures.
         Warning: can execute arbitrary module code.""")
 
+    parser.add_argument(
+        '--functional', default=False, action='store_true',
+        help="""Disallow overwriting variables.""")
+
     parser.add_argument('filenames', type=str, nargs='+', help="""python files to parse""")
 
     args = parser.parse_args()
 
     module_load_policy = 'all' if args.import_any else 'builtins' if args.import_builtin else 'none'
-    pystrict3lib.main(args.filenames, module_load_policy)
+    pystrict3lib.main(args.filenames, module_load_policy, not args.functional)

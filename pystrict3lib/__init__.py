@@ -426,7 +426,7 @@ class NameAssignVerifier():
         return known_nodes
 
 
-def main(filenames, module_load_policy='none'):
+def main(filenames, module_load_policy='none', allow_variable_reuse=False):
     """ Verify python files listed in filenames """
     known_functions = dict()
     FuncLister.load_builtin_functions()
@@ -460,7 +460,7 @@ def main(filenames, module_load_policy='none'):
         CallLister(filename=filename, known_functions=known_functions).visit(a)
         
         print("%s: checking variables ..." % filename)
-        nameassigner = NameAssignVerifier(filename)
+        nameassigner = NameAssignVerifier(filename, allow_variable_reuse=allow_variable_reuse)
         nameassigner.walk_tree(a.body, known)
         if nameassigner.found_variable_unknown:
             sys.exit(1)
