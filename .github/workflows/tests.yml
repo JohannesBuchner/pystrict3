@@ -27,10 +27,7 @@ jobs:
       - name: Run tests
         run: make test
       - name: Self-test
-        run: | 
-          pystrict3.py pystrict3.py pystrict3lib/*.py
-          pystrict3.py --import-builtin pystrict3.py pystrict3lib/*.py
-          pystrict3.py --import-any pystrict3.py pystrict3lib/*.py
+        run: pystrict3.py --allow-redefining --import-any pystrict3.py pystrict3lib/*.py
       - name: Convert coverage output to lcov for coveralls
         run: |
           coverage-lcov
