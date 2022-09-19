@@ -8,6 +8,7 @@ import sys
 import builtins
 import logging
 import operator
+import re
 
 from .funcchecker import FuncLister, list_documented_parameters, max_documented_returns, CallLister, ModuleCallLister
 from .classchecker import ClassPropertiesLister
@@ -166,12 +167,66 @@ class FuncDocVerifier(ast.NodeVisitor):
         self.class_methods = []
         self.checked_docstrings = 0
 
+    KNOWN_DIRECTIVES = ':mod: :func: :data: :const: :class: :meth: :attr: :exc: :obj:'.split()
+
     def visit_ClassDef(self, node):
         for child in ast.iter_child_nodes(node):
             # look for methods:
             if isinstance(child, ast.FunctionDef):
                 self.class_methods.append(child)
+        docstring = ast.get_docstring(node, clean=True)
+        if docstring is None:
+            self.log.debug('%s:%d:no docstring for class "%s"', self.filename, node.lineno, node.name)
+            return
+        self.find_directives(docstring, node.name, node.body[0].value.lineno)
         self.generic_visit(node)
+
+    def find_directives(self, docstring, nodename, lineno, outstream=sys.stderr):
+        """find faulty python rst referencing directives.
+
+        * tests for rst links with no _ at the end, or no space between text and URI.
+        * tests for unknown `py` directives, and `py` directives that are placed in global domain.
+        * tests for `py` directives that lack quotes
+
+        Parameters
+        ----------
+        docstring: str
+            string to test
+        node: Node
+            node where the docstring came from
+        """
+        if '<' in docstring:
+            pattern = r'`.*[^ ]( ?)<[^>]*>`(_?)'
+            for i, line in enumerate(docstring.split('\n')):
+                if '<' not in line:
+                    continue
+                matches = re.finditer(pattern, line)
+                for match in matches:
+                    if match.group(1) == '':
+                        outstream.write('%s:%d: docstring WARNING: rst link needs space before <url>.\n' % (
+                            self.filename, lineno + i))
+                    if match.group(2) == '':
+                        outstream.write('%s:%d: docstring WARNING: rst link should end with _.\n' % (
+                            self.filename, lineno + i))
+
+        if ':' in docstring:
+            pattern = r'(:py)?(:?[a-z]{1,20}:?)(`?)'
+            for i, line in enumerate(docstring.split('\n')):
+                if ':' not in line:
+                    continue
+                matches = re.finditer(pattern, line)
+                for match in matches:
+                    # print('matchgroup: "%s" "%s" "%s"' % (match.group(0), match.group(1), match.group(2)))
+                    if match.group(1) is None and match.group(2) in self.KNOWN_DIRECTIVES:
+                        outstream.write('%s:%d: docstring WARNING: "%s" should be ":py%s".\n' % (
+                            self.filename, lineno + i, match.group(2), match.group(2)))
+                    elif match.group(1) == ':py':
+                        if match.group(2) not in self.KNOWN_DIRECTIVES:
+                            outstream.write('%s:%d: docstring WARNING: unknown directive "%s%s".\n' % (
+                                self.filename, lineno + i, match.group(1), match.group(2)))
+                        elif match.group(3) != '`':
+                            outstream.write('%s:%d: docstring WARNING: directive should continue with `quotes`.\n' % (
+                                self.filename, lineno + i))
 
     def visit_FunctionDef(self, node):
         arguments = node.args
@@ -180,6 +235,7 @@ class FuncDocVerifier(ast.NodeVisitor):
         if func_docstring is None:
             self.log.debug('%s:%d:no docstring for function "%s"', self.filename, node.lineno, node.name)
             return
+        self.find_directives(func_docstring, node.name, node.body[0].value.lineno)
 
         documented_parameters = list_documented_parameters('\n' + func_docstring)
         function_arguments = [arg.arg for arg in arguments.args]
@@ -597,16 +653,16 @@ def main(filenames, module_load_policy='none', allow_variable_reuse=False):
         nameassigner.walk_tree(a.body, known)
         total_checked_known_var += nameassigner.known_checked
         total_checked_unknown_var += nameassigner.unknown_checked
+        print("%s: checking docstrings ..." % filename)
+        funcdocs = FuncDocVerifier(filename=filename)
+        funcdocs.visit(a)
+        total_checked_docstrings += funcdocs.checked_docstrings
         if nameassigner.found_variable_unknown:
             sys.exit(2)
         if nameassigner.found_variable_reused and not allow_variable_reuse:
             sys.exit(3)
         if nameassigner.found_builtin_overwritten:
             sys.exit(4)
-        print("%s: checking docstrings ..." % filename)
-        funcdocs = FuncDocVerifier(filename=filename)
-        funcdocs.visit(a)
-        total_checked_docstrings += funcdocs.checked_docstrings
         if funcdocs.undocumented_parameters_found:
             sys.exit(5)
         if funcdocs.undocumented_returns_found:
