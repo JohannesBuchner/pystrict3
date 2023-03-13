@@ -172,7 +172,7 @@ class FuncDocVerifier(ast.NodeVisitor):
         -----------
         filename: str
             Python file name
-    """
+        """
         self.filename = filename
         self.log = logging.getLogger('pystrict3.funcdoc')
         self.undocumented_parameters_found = False
@@ -595,13 +595,8 @@ class NameAssignVerifier():
                 self.log.debug('%s+node deleted name: %s', depthstr, name)
                 known_nodes[name] = (False, node.lineno)
 
-            # if hasattr(node, 'key') and isinstance(node.key, ast.Name):
-                # self.log.debug('%s+key name: %s', depthstr, node.key.id)
-                # self.assert_unknown(node.key.id, known_nodes, node.lineno)
-                # known_nodes[node.key.id] = (True, node.lineno)
             if hasattr(node, 'generators'):
                 # ignore result, because variables do not leak out
-                # known_nodes2 = dict(**known_nodes)
                 for g in node.generators[::-1]:
                     for name in get_assigned_ids(g):
                         self.log.debug('%s+generator %s name: %s', depthstr, g, name)
@@ -617,12 +612,6 @@ class NameAssignVerifier():
             if hasattr(node, 'value'):
                 # ignore result, because variables do not leak out
                 self.walk_tree([node.value], dict(**known_nodes), depth + 1)
-                # self.check_new_identifiers([node.value], node, dict(**known_nodes))
-            # if hasattr(node, 'target'):
-            #     for name in get_assigned_ids(node.target):
-            #         self.log.debug('+node target %s', name)
-            #         self.assert_unknown(name, known_nodes, node.lineno)
-            #         known_nodes[name] = (True, node.lineno)
 
             nodes_to_add = {}
             nbranches = 0
