@@ -80,6 +80,7 @@ def modify_function(function):
                 pass
 
     # load existing docstring, if any
+    indent_str = r.value[0].indentation
     if r.value[0].type == "string":
         docstring = r.value[0].to_python()
         docstring_body = textwrap.dedent("\n".join(docstring.split("\n")[1:]))
@@ -143,10 +144,12 @@ Returns
                 types.get(par, "<TYPE>"),
                 par,
             )
+
+	rb_docstring = textwrap.indent('"""%s"""' % docstring, indent_str).lstrip()
     if r.value[0].type == "string":
-        r.value[0].value = '"""%s"""' % docstring
+        r.value[0].value = rb_docstring
     else:
-        r.value.insert(0, '"""%s"""' % docstring)
+        r.value.insert(0, rb_docstring)
 
 
 def main():
