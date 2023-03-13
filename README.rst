@@ -226,8 +226,6 @@ The following command creates a file myfile-new.py with suggested docstrings::
 If you want to overwrite the file directly::
     $ gendocstr.py --in-place myfile.py
 
-This keeps all the existing code formatting as is (thanks to `RedBaron <https://redbaron.readthedocs.io/en/latest/>`_).
-
 Example input script::
 
     def indicator(r, threshold=42):
@@ -259,9 +257,12 @@ Rewritten by gendocstr.py, the new file is::
         else:
             return True
 
-gendocstr.py can guess the parameter type from keywords and type annotations,
-if provided. gendocstr.py can guess the return type if it is a 
-input parameter or if it is True/False.
+**Features** of gendocstr.py:
+
+ * can guess the parameter type from keywords and type annotations, if provided. 
+ * can guess the return type if it is a input parameter or if it is True/False.
+ * keeps all the existing code formatting as is (thanks to `RedBaron <https://redbaron.readthedocs.io/en/latest/>`_).
+ * can be used together with isort and black to force normalised python code.
 
 Licence
 ---------
