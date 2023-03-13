@@ -47,6 +47,8 @@ jobs:
           path-to-lcov: lcov.info
           flag-name: run-${{ matrix.python-version }}
           parallel: true
+      - name: coverall files
+        run: grep SF lcov.info
         
 
   finish:
