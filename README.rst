@@ -216,17 +216,9 @@ For verbose output, pipe stdout to /dev/null.
 gendocstr.py tool
 -----------------
 
-Bored of writing numpy-docstring boiler plate? 
-Can't remember the formatting of parameter and return types?
-Have it pre-generated for you, so you only need to edit it.
+gendocstr.py pre-generates numpy-style docstrings.
 
-The following command creates a file myfile-new.py with suggested docstrings::
-    $ python3 gendocstr.py --verbose myfile.py
-
-If you want to overwrite the file directly::
-    $ gendocstr.py --in-place myfile.py
-
-Example input script::
+Say you have a file with this code::
 
     def indicator(r, threshold=42):
         if r > threshold:
@@ -234,7 +226,7 @@ Example input script::
         else:
             return True
 
-Rewritten by gendocstr.py, the new file is::
+Rewritten by gendocstr.py, the new code is::
 
     def indicator(r, threshold=42):
         """<summary sentence of function in imperative>.
@@ -257,12 +249,20 @@ Rewritten by gendocstr.py, the new file is::
         else:
             return True
 
-**Features** of gendocstr.py:
+The following command creates a file myfile-new.py with suggested docstrings::
 
- * can guess the parameter type from keywords and type annotations, if provided. 
- * can guess the return type if it is a input parameter or if it is True/False.
- * keeps all the existing code formatting as is (thanks to `RedBaron <https://redbaron.readthedocs.io/en/latest/>`_).
- * can be used together with isort and black to force normalised python code.
+    $ python3 gendocstr.py --verbose myfile.py
+
+If you want to overwrite the source code file directly::
+
+    $ gendocstr.py --in-place myfile.py
+
+**Features**:
+
+* gendocstr.py can guess the parameter type from keywords and type annotations, if provided. 
+* can guess the return type if it is a input parameter or if it is True/False.
+* keeps all the existing code formatting as is (thanks to `RedBaron <https://redbaron.readthedocs.io/en/latest/>`_).
+* can be used together with isort and black to force normalised python code.
 
 Licence
 ---------
