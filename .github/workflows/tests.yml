@@ -32,6 +32,8 @@ jobs:
         run: make test
       - name: Self-test
         run: pystrict3.py --allow-redefining --import-any pystrict3.py pystrict3lib/*.py
+      - name: Self-test (gendocstr)
+        run: gendocstr.py gendocstr.py
       - name: Convert coverage output to lcov for coveralls
         run: |
           coverage combine

@@ -20,11 +20,11 @@ except IOError:
     with open(os.path.join(os.path.dirname(__file__), 'HISTORY.rst')) as history_file:
         history = history_file.read()
 
-requirements = []
+requirements = ['redbaron']
 
 setup_requirements = ['pytest-runner', ]
 
-test_requirements = ['pytest>=3', "numpy"]
+test_requirements = ['pytest>=3', 'numpy']
 
 setup(
     author="Johannes Buchner",
@@ -47,7 +47,7 @@ setup(
     long_description=readme + '\n\n' + history,
     name='pystrict3',
     packages=['pystrict3lib'],
-    scripts=['pystrict3.py'],
+    scripts=['pystrict3.py', 'gendocstr.py'],
     setup_requires=setup_requirements,
     test_suite='tests',
     tests_require=test_requirements,
