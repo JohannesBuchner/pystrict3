@@ -97,7 +97,10 @@ def get_deleted_ids(node):
 
 
 def is_container(node):
-    """Check if node contains code."""
+    """Check if node contains code.
+
+    :param node: AST node
+    """
     return isinstance(node, ast.FunctionDef) or isinstance(node, ast.AsyncFunctionDef) or isinstance(node, ast.ClassDef) or isinstance(node, ast.Lambda) or isinstance(node, ast.Expr) or isinstance(node, ast.Call)
 
 
@@ -146,7 +149,10 @@ def get_all_ids(node):
 
 
 def block_terminates(statements):
-    """Check if code block stops the execution."""
+    """Check if code block stops the execution.
+
+    :param statements: AST nodes
+    """
     for statement in statements:
         if isinstance(statement, ast.Return):
             return True
@@ -192,8 +198,12 @@ class FuncDocVerifier(ast.NodeVisitor):
         ----------
         docstring: str
             string to test
-        node: Node
-            node where the docstring came from
+        nodename: str
+            name of node where the docstring came from
+        lineno: int
+            Line number
+        outstream: File
+            Output file to write output information to
         """
         if '<' in docstring:
             pattern = r'`.*[^ ]( ?)<[^>]*>`(_?)'
@@ -257,12 +267,14 @@ class FuncDocVerifier(ast.NodeVisitor):
                 sys.stderr.write('%s:%d: ERROR: argument "%s" of "%s" missing in docstring\n' % (
                     self.filename, node.lineno, arg, node.name))
                 self.undocumented_parameters_found |= True
+            del arg
         if not variable_length:
             for arg in documented_parameters:
                 if not arg.startswith('*') and arg not in argument_names:
                     sys.stderr.write('%s:%d: ERROR: "%s" in docstring is not an argument of "%s"\n' % (
                         self.filename, node.lineno, arg, node.name))
                     self.undocumented_parameters_found |= True
+                del arg
 
         all_returns = [
             (return_tuple_length, return_node)
@@ -323,13 +335,31 @@ class NameAssignVerifier():
         self.known_checked = 0
 
     def variable_unknown_found(self, lineno, name):
-        """Report a undefined variable `name` was found in line `lineno`."""
+        """Report a undefined variable `name` was found in line `lineno`.
+
+        Parameters
+        ----------
+        lineno: int
+            Line number
+        name: str
+            variable name
+        """
         sys.stderr.write('%s:%d: ERROR: Variable unknown: "%s"\n' % (self.filename, lineno, name))
         self.found_variable_unknown |= True
         raise Exception(name)
 
     def assert_unknown(self, name, known, lineno, override_with_builtins=False):
-        """Report error if `name` is already in set `known`."""
+        """Report error if `name` is already in set `known`.
+
+        Parameters
+        ----------
+        lineno: int
+            Line number
+        name: str
+            variable name
+        override_with_builtins: bool
+            whether a variable assignment overriding a builtin name should raise an error
+        """
         self.log.debug("assert_unknown: %s, %s", name, lineno)
         assert name is not None
         # the nested if allows deleting builtins and re-defining them afterwards
@@ -355,7 +385,17 @@ class NameAssignVerifier():
             self.unknown_checked += 1
 
     def check_new_identifiers(self, elements, node, known):
-        """Add newly defined variables and verify that the accessed ones are defined in known"""
+        """Add newly defined variables and verify that the accessed ones are defined in known.
+
+        Parameters
+        ----------
+        elements: list
+            list of ast nodes of variables
+        node: Node
+            current node
+        known: set
+            known variable names
+        """
         add = {}
         forget = set()
         self.log.debug('check_new_identifiers: known: %s', known.keys() - preknown)
