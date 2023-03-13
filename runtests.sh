@@ -1,5 +1,5 @@
 #!/bin/bash
-
+export PYTHONPATH=.:$PYTHONPATH
 pystrict3="coverage run -a ./pystrict3.py --import-any"
 
 coverage run ./pystrict3.py --help >/dev/null  || exit 0

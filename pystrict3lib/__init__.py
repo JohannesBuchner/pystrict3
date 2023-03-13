@@ -166,6 +166,13 @@ class FuncDocVerifier(ast.NodeVisitor):
     """Compares parameter names in function definition with docstring."""
 
     def __init__(self, filename):
+        """Set up verifier.
+
+        Parameters
+        -----------
+        filename: str
+            Python file name
+    """
         self.filename = filename
         self.log = logging.getLogger('pystrict3.funcdoc')
         self.undocumented_parameters_found = False
@@ -176,6 +183,13 @@ class FuncDocVerifier(ast.NodeVisitor):
     KNOWN_DIRECTIVES = ':mod: :func: :data: :const: :class: :meth: :attr: :exc: :obj:'.split()
 
     def visit_ClassDef(self, node):
+        """Handle class docstrings.
+
+        Parameters
+        -----------
+        node: object
+            ast node of the class.
+        """
         for child in ast.iter_child_nodes(node):
             # look for methods:
             if isinstance(child, ast.FunctionDef):
@@ -239,6 +253,13 @@ class FuncDocVerifier(ast.NodeVisitor):
                                 self.filename, lineno + i))
 
     def visit_FunctionDef(self, node):
+        """Handle function docstrings.
+
+        Parameters
+        -----------
+        node: object
+            ast node of the function.
+        """
         arguments = node.args
         # allow "Parameters" as first line as well by prepending a newline
         func_docstring = ast.get_docstring(node, clean=True)
@@ -299,6 +320,13 @@ class FuncDocVerifier(ast.NodeVisitor):
         self.generic_visit(node)
 
     def _walk_tree(self, nodes):
+        """Recursively walk the tree of the nodes.
+
+        Parameters
+        -----------
+        nodes: list
+            list of nodes to descend into.
+        """
         for node in nodes:
             if isinstance(node, ast.Return):
                 yield len(getattr(node.value, 'elts', [])), node.value
@@ -355,6 +383,8 @@ class NameAssignVerifier():
         ----------
         lineno: int
             Line number
+        known: set
+            variables already defined
         name: str
             variable name
         override_with_builtins: bool
@@ -450,6 +480,11 @@ class NameAssignVerifier():
                         add_here[name] = el.lineno
                     del names
                 del item, items
+            if hasattr(el, 'iter') and isinstance(el.iter, ast.DictComp) and isinstance(el.iter, ast.Name):
+                name = el.iter.id
+                self.log.debug('check_new_identifiers: iter variable %s', name)
+                self.assert_unknown(name, known, el.lineno)
+                add_here[name] = node.lineno
             if hasattr(el, 'target') and not isinstance(el, ast.AugAssign):
                 for name in get_assigned_ids(el.target):
                     self.log.debug('check_new_identifiers: target %s', name)
@@ -509,6 +544,22 @@ class NameAssignVerifier():
         self.log.debug('known: %s', known.keys() - preknown)
 
     def walk_tree(self, nodes, preknown={}, depth=0):
+        """<summary sentence of function in imperative>.
+
+        Parameters
+        -----------
+        nodes: <TYPE>
+            <MEANING OF nodes>
+        preknown: dict
+            <MEANING OF preknown>
+        depth: int
+            <MEANING OF depth>
+
+        Returns
+        ----------
+        known_nodes: <TYPE>
+            <MEANING OF known_nodes>
+        """
         known_nodes = dict(**preknown)
         depthstr = ' ' * depth
         terminated = False
@@ -544,15 +595,19 @@ class NameAssignVerifier():
                 self.log.debug('%s+node deleted name: %s', depthstr, name)
                 known_nodes[name] = (False, node.lineno)
 
+            # if hasattr(node, 'key') and isinstance(node.key, ast.Name):
+                # self.log.debug('%s+key name: %s', depthstr, node.key.id)
+                # self.assert_unknown(node.key.id, known_nodes, node.lineno)
+                # known_nodes[node.key.id] = (True, node.lineno)
             if hasattr(node, 'generators'):
                 # ignore result, because variables do not leak out
-                known_nodes2 = dict(**known_nodes)
+                # known_nodes2 = dict(**known_nodes)
                 for g in node.generators[::-1]:
                     for name in get_assigned_ids(g):
                         self.log.debug('%s+generator %s name: %s', depthstr, g, name)
-                        self.assert_unknown(name, known_nodes2, node.lineno)
-                        known_nodes2[name] = (True, node.lineno)
-                    self.walk_tree([g.target], known_nodes2, depth + 1)
+                        self.assert_unknown(name, known_nodes, node.lineno)
+                        known_nodes[name] = (True, node.lineno)
+                    self.walk_tree([g.target], known_nodes, depth + 1)
             if hasattr(node, 'test'):
                 # ignore result, because variables do not leak out
                 self.check_new_identifiers([node.test], node, dict(**known_nodes))
