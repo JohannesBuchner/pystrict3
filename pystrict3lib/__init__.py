@@ -48,7 +48,12 @@ preknown = set(builtins.__dict__).union({'__doc__', '__file__', '__name__', '__a
 
 
 def get_arg_ids(node):
-    """List variable names mentioned in a node."""
+    """List variable names mentioned in a node.
+Parameters
+-----------
+node: <TYPE>
+    <MEANING OF node>
+"""
     if hasattr(node, 'args') and isinstance(node.args, ast.arguments):
         args = node.args
         for arg in args.args:
@@ -64,7 +69,12 @@ def get_arg_ids(node):
 
 
 def get_assigned_ids(node):
-    """List variable names being assigned in a node."""
+    """List variable names being assigned in a node.
+Parameters
+-----------
+node: <TYPE>
+    <MEANING OF node>
+"""
     if isinstance(node, ast.Name) and not isinstance(node.ctx, ast.Del):
         yield node.id
     if hasattr(node, 'target'):
@@ -86,7 +96,12 @@ def get_assigned_ids(node):
 
 
 def get_deleted_ids(node):
-    """List variable names being deleted in a node."""
+    """List variable names being deleted in a node.
+Parameters
+-----------
+node: <TYPE>
+    <MEANING OF node>
+"""
     if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Del):
         yield node.id
     if hasattr(node, 'target'):
