@@ -2,3 +2,4 @@
 include = 
 	pystrict3.py
 	pystrict3lib/*
+	gendocstr.py
