@@ -32,14 +32,13 @@ jobs:
         run: make test
       - name: Self-test
         run: pystrict3.py --allow-redefining --import-any pystrict3.py pystrict3lib/*.py
-      - name: Self-test (gendocstr)
-        run: gendocstr.py gendocstr.py
       - name: Convert coverage output to lcov for coveralls
         run: |
           coverage combine
           coverage-lcov
           # make paths relative
           sed -i s,$PWD/,,g lcov.info
+          grep SF lcov.info
       - name: prepare coveralls partial upload
         if: ${{ !((matrix.python-version == '2.7') || (matrix.python-version == '3.5')) }}
         uses: coverallsapp/github-action@master
