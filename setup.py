@@ -29,9 +29,9 @@ test_requirements = ['pytest>=3', 'numpy']
 setup(
     author="Johannes Buchner",
     author_email='johannes.buchner.acad@gmx.com',
-    python_requires='>=3.5',
+    python_requires='>=3.7',
     classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
         'Natural Language :: English',

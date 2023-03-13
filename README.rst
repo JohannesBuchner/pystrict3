@@ -213,6 +213,56 @@ Return code is non-zero if a error was detected, or 0 otherwise.
 
 For verbose output, pipe stdout to /dev/null.
 
+gendocstr.py tool
+-----------------
+
+Bored of writing numpy-docstring boiler plate? 
+Can't remember the formatting of parameter and return types?
+Have it pre-generated for you, so you only need to edit it.
+
+The following command creates a file myfile-new.py with suggested docstrings::
+    $ python3 gendocstr.py --verbose myfile.py
+
+If you want to overwrite the file directly::
+    $ gendocstr.py --in-place myfile.py
+
+This keeps all the existing code formatting as is (thanks to `RedBaron <https://redbaron.readthedocs.io/en/latest/>`_).
+
+Example input script::
+
+    def indicator(r, threshold=42):
+        if r > threshold:
+            return False
+        else:
+            return True
+
+Rewritten by gendocstr.py, the new file is::
+
+    def indicator(r, threshold=42):
+        """<summary sentence of function in imperative>.
+        
+        
+        Parameters
+        -----------
+        r: <TYPE>
+            <MEANING OF r>
+        threshold: int
+            <MEANING OF threshold>
+        
+        Returns
+        ----------
+        indicator: bool
+            <MEANING OF indicator>
+        """
+        if r > threshold:
+            return False
+        else:
+            return True
+
+gendocstr.py can guess the parameter type from keywords and type annotations,
+if provided. gendocstr.py can guess the return type if it is a 
+input parameter or if it is True/False.
+
 Licence
 ---------
 
