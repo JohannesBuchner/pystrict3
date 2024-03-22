@@ -3,15 +3,14 @@ pystrict3
 
 pystrict3 is a fast plausibility code analyser for Python3.
 
-Thanks to static code analysis, it checks Python3 code for obvious mistakes,
-such as
+It checks code for obvious mistakes, such as
 
-* calling functions with the different number of arguments than they are defined with.
+* calling declared and imported functions with a different number of arguments than they are defined with.
 * accessing attributes and methods that are never set.
-* documenting the wrong number of arguments.
-* using variables that are never set.
+* documenting the wrong number of arguments (numpy or google style docstrings).
+* using variables that were never set.
 
-Without running your python code!
+All this without running your python code!
 
 This tool complements other static analysers such as pyflakes, and
 can be used alongside linters and code format checkers (such as pylint and flake8).
