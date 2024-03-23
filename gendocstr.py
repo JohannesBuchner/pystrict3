@@ -121,10 +121,10 @@ Parameters
                         return_names.append("<NAME>")
         elif ret.value.type == "name":
             name = ret.value.value
-            if name in ('True', 'False'):
+            if name in ("True", "False"):
                 if r.name not in return_names:
                     return_names.append(r.name)
-                    types[r.name] = 'bool'
+                    types[r.name] = "bool"
             elif name not in return_names:
                 return_names.append(name)
         else:
@@ -145,7 +145,7 @@ Returns
                 par,
             )
 
-	rb_docstring = textwrap.indent('"""%s"""' % docstring, indent_str).lstrip()
+    rb_docstring = textwrap.indent('"""%s"""' % docstring, indent_str).lstrip()
     if r.value[0].type == "string":
         r.value[0].value = rb_docstring
     else:

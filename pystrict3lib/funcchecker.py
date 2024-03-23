@@ -51,14 +51,20 @@ def parse_builtin_signature(signature):
     """
     min_args = 0
     for param in signature.parameters.values():
-        if param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD or param.kind == inspect.Parameter.POSITIONAL_ONLY:
+        if (
+            param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD
+            or param.kind == inspect.Parameter.POSITIONAL_ONLY
+        ):
             if param.default == inspect.Parameter.empty:
                 min_args += 1
         else:
             break
         del param
     for param in signature.parameters.values():
-        if param.kind == inspect.Parameter.VAR_KEYWORD or param.kind == inspect.Parameter.VAR_POSITIONAL:
+        if (
+            param.kind == inspect.Parameter.VAR_KEYWORD
+            or param.kind == inspect.Parameter.VAR_POSITIONAL
+        ):
             return min_args, -1
 
     max_args = len(signature.parameters)
@@ -85,7 +91,9 @@ def count_function_arguments(arguments):
 
     If uncertain, the maximum is -1.
     """
-    return count_function_min_arguments(arguments), count_function_max_arguments(arguments)
+    return count_function_min_arguments(arguments), count_function_max_arguments(
+        arguments
+    )
 
 
 def count_call_arguments(call):
@@ -111,10 +119,17 @@ def strip_left_indent(s):
 
     :param s: string
     """
-    body_lines = s.split('\n')
-    filled_lines = [line for line in body_lines if line.strip() != '']
-    left_padding_to_remove = min(len(line) - len(line.lstrip()) for line in filled_lines)
-    return '\n'.join(['' if line.strip() == '' else line[left_padding_to_remove:] for line in body_lines])
+    body_lines = s.split("\n")
+    filled_lines = [line for line in body_lines if line.strip() != ""]
+    left_padding_to_remove = min(
+        len(line) - len(line.lstrip()) for line in filled_lines
+    )
+    return "\n".join(
+        [
+            "" if line.strip() == "" else line[left_padding_to_remove:]
+            for line in body_lines
+        ]
+    )
 
 
 def list_documented_parameters(docstring):
@@ -134,9 +149,9 @@ def list_documented_parameters(docstring):
     """
     params = []
     for section_start, section_end in [
-        ('\nParameters\n---------', '\n---'),
-        ('\nOther Parameters\n---------', '\n---'),
-        ('\nArgs:', '\n\n')
+        ("\nParameters\n---------", "\n---"),
+        ("\nOther Parameters\n---------", "\n---"),
+        ("\nArgs:", "\n\n"),
     ]:
         if section_start in docstring:
             index_param_section = docstring.index(section_start) + len(section_start)
@@ -144,13 +159,19 @@ def list_documented_parameters(docstring):
                 index_next_section = docstring.index(section_end, index_param_section)
             except ValueError:
                 index_next_section = -1
-            parameter_section = strip_left_indent(docstring[index_param_section:index_next_section])
-            for line in parameter_section.split('\n'):
-                if not line.startswith(' ') and not line.startswith('\t') and ':' in line:
-                    params.append(line.split(':')[0].strip())
-    for line in docstring.split('\n'):
-        if ':param' in line:
-            params.append(line.split(':param')[1].split(':')[0].strip())
+            parameter_section = strip_left_indent(
+                docstring[index_param_section:index_next_section]
+            )
+            for line in parameter_section.split("\n"):
+                if (
+                    not line.startswith(" ")
+                    and not line.startswith("\t")
+                    and ":" in line
+                ):
+                    params.append(line.split(":")[0].strip())
+    for line in docstring.split("\n"):
+        if ":param" in line:
+            params.append(line.split(":param")[1].split(":")[0].strip())
     return params
 
 
@@ -171,20 +192,32 @@ def max_documented_returns(docstring):
         None if unsure, int if the maximum number could be determined.
     """
     params = []
-    if '\n' not in docstring:
+    if "\n" not in docstring:
         return params
-    docstring_lstripped = strip_left_indent('\n'.join(docstring.split('\n')[1:]))
-    section_start = '\nReturns\n---------'
-    section_end = '\n---'
+    docstring_lstripped = strip_left_indent("\n".join(docstring.split("\n")[1:]))
+    section_start = "\nReturns\n---------"
+    section_end = "\n---"
     if section_start in docstring_lstripped:
-        index_param_section = docstring_lstripped.index(section_start) + len(section_start)
+        index_param_section = docstring_lstripped.index(section_start) + len(
+            section_start
+        )
         try:
-            index_next_section = docstring_lstripped.index(section_end, index_param_section)
+            index_next_section = docstring_lstripped.index(
+                section_end, index_param_section
+            )
         except ValueError:
             index_next_section = -1
-        return_section = strip_left_indent(docstring_lstripped[index_param_section:index_next_section])
+        return_section = strip_left_indent(
+            docstring_lstripped[index_param_section:index_next_section]
+        )
         # simply count non-indented lines, because name is optional
-        entries = [line for line in return_section.split('\n') if not line.startswith(' ') and not line.startswith('\t') and not line.strip() == '']
+        entries = [
+            line
+            for line in return_section.split("\n")
+            if not line.startswith(" ")
+            and not line.startswith("\t")
+            and not line.strip() == ""
+        ]
         # some return types could be optional, but we expect at least one
         return len(entries)
 
@@ -202,7 +235,7 @@ class FuncLister(ast.NodeVisitor):
         self.filename = filename
         self.known_functions = dict(**FuncLister.KNOWN_BUILTIN_FUNCTIONS)
         self.known_staticmethods = {}
-        self.log = logging.getLogger('pystrict3.funcchecker')
+        self.log = logging.getLogger("pystrict3.funcchecker")
 
     KNOWN_BUILTIN_FUNCTIONS = {}
 
@@ -211,12 +244,18 @@ class FuncLister(ast.NodeVisitor):
         for f, func in builtins.__dict__.items():
             if inspect.isbuiltin(func) or inspect.isfunction(func):
                 try:
-                    FuncLister.KNOWN_BUILTIN_FUNCTIONS[f] = parse_builtin_signature(inspect.signature(func))
+                    FuncLister.KNOWN_BUILTIN_FUNCTIONS[f] = parse_builtin_signature(
+                        inspect.signature(func)
+                    )
                 except ValueError:
                     FuncLister.KNOWN_BUILTIN_FUNCTIONS[f] = 0, -1
 
     def visit_FunctionDef(self, node):
-        is_staticmethod = len(node.decorator_list) == 1 and isinstance(node.decorator_list[0], ast.Name) and node.decorator_list[0].id == 'staticmethod'
+        is_staticmethod = (
+            len(node.decorator_list) == 1
+            and isinstance(node.decorator_list[0], ast.Name)
+            and node.decorator_list[0].id == "staticmethod"
+        )
         if node.decorator_list == [] or is_staticmethod:
             min_args = count_function_min_arguments(node.args)
             max_args = count_function_max_arguments(node.args)
@@ -238,33 +277,40 @@ class FuncLister(ast.NodeVisitor):
         else:
             self.known_functions[node.name] = (min_combined_args, max_combined_args)
 
-        self.log.debug('function "%s" has %d..%d arguments' % (node.name, min_args, max_args))
+        self.log.debug(
+            'function "%s" has %d..%d arguments' % (node.name, min_args, max_args)
+        )
         self.generic_visit(node)
 
     def visit_ClassDef(self, node):
         # find the child that defines __init__
         if node.decorator_list == []:
             if node.name in self.known_functions:
-                sys.stderr.write('%s:%d: ERROR: Class "%s" redefined\n' % (
-                    self.filename, node.lineno, node.name))
+                sys.stderr.write(
+                    '%s:%d: ERROR: Class "%s" redefined\n'
+                    % (self.filename, node.lineno, node.name)
+                )
                 sys.exit(1)
 
             for child in ast.iter_child_nodes(node):
                 # look for __init__ method:
                 if not isinstance(child, ast.FunctionDef):
                     continue
-                if not child.name == '__init__':
+                if not child.name == "__init__":
                     continue
 
                 arguments = child.args
-                if len(arguments.args) >= 1 and arguments.args[0].arg == 'self':
+                if len(arguments.args) >= 1 and arguments.args[0].arg == "self":
                     min_args, max_args = count_function_arguments(arguments)
                     # remove self from arguments, as it is supplied by Python
                     if max_args > 0:
                         max_args -= 1
                     min_args -= 1
                     self.known_functions[node.name] = (min_args, max_args)
-                    self.log.debug('class "%s" init has %d..%d arguments' % (node.name, min_args, max_args))
+                    self.log.debug(
+                        'class "%s" init has %d..%d arguments'
+                        % (node.name, min_args, max_args)
+                    )
 
         self.generic_visit(node)
 
@@ -281,7 +327,7 @@ class CallLister(ast.NodeVisitor):
         """
         self.filename = filename
         self.known_functions = known_functions
-        self.log = logging.getLogger('pystrict3.funcchecker')
+        self.log = logging.getLogger("pystrict3.funcchecker")
         self.checked_calls = 0
 
     def visit_Call(self, node):
@@ -296,21 +342,44 @@ class CallLister(ast.NodeVisitor):
         min_call_args, may_have_more = count_call_arguments(node)
 
         if max_args >= 0 and min_call_args > max_args:
-            sys.stderr.write('%s:%d: ERROR: Function "%s" (%d..%d arguments) called with too many (%d%s) arguments\n' % (
-                self.filename, node.lineno, funcname, min_args, max_args, min_call_args, '+' if may_have_more else ''))
+            sys.stderr.write(
+                '%s:%d: ERROR: Function "%s" (%d..%d arguments) called with too many (%d%s) arguments\n'
+                % (
+                    self.filename,
+                    node.lineno,
+                    funcname,
+                    min_args,
+                    max_args,
+                    min_call_args,
+                    "+" if may_have_more else "",
+                )
+            )
             sys.exit(1)
         elif min_call_args < min_args and not may_have_more:
-            sys.stderr.write('%s:%d: ERROR: Function "%s" (%d..%d arguments) called with too few (%d%s) arguments\n' % (
-                self.filename, node.lineno, funcname, min_args, max_args, min_call_args, '+' if may_have_more else ''))
+            sys.stderr.write(
+                '%s:%d: ERROR: Function "%s" (%d..%d arguments) called with too few (%d%s) arguments\n'
+                % (
+                    self.filename,
+                    node.lineno,
+                    funcname,
+                    min_args,
+                    max_args,
+                    min_call_args,
+                    "+" if may_have_more else "",
+                )
+            )
             sys.exit(1)
         else:
-            self.log.debug("call(%s with %d%s args): OK" % (funcname, min_call_args, '+' if may_have_more else ''))
+            self.log.debug(
+                "call(%s with %d%s args): OK"
+                % (funcname, min_call_args, "+" if may_have_more else "")
+            )
             self.checked_calls += 1
 
 
 BUILTIN_MODULES = []
 for m in list(sys.builtin_module_names) + list(sys.modules.keys()):
-    if not m.startswith('_'):
+    if not m.startswith("_"):
         BUILTIN_MODULES.append(m)
 
 
@@ -318,7 +387,7 @@ class ModuleCallLister(ast.NodeVisitor):
     """Verifies all calls against call signatures in known_functions.
     Unknown functions are not verified."""
 
-    def __init__(self, filename, load_policy='none'):
+    def __init__(self, filename, load_policy="none"):
         """Initialize.
 
         :param filename: file name
@@ -331,18 +400,25 @@ class ModuleCallLister(ast.NodeVisitor):
         self.filename = filename
         self.checked_calls = 0
 
-        if load_policy not in ('none', 'builtins', 'all'):
-            raise ValueError("load_policy needs to be one of ('none', 'builtins', 'all'), not '%s'" % load_policy)
+        if load_policy not in ("none", "builtins", "all"):
+            raise ValueError(
+                "load_policy needs to be one of ('none', 'builtins', 'all'), not '%s'"
+                % load_policy
+            )
         self.load_policy = load_policy
-        self.approved_module_names = {k for k in sys.modules.keys() if not k.startswith('_')}
+        self.approved_module_names = {
+            k for k in sys.modules.keys() if not k.startswith("_")
+        }
 
-        if self.load_policy != 'none':
-            self.approved_module_names |= {k for k in sys.builtin_module_names if not k.startswith('_')}
+        if self.load_policy != "none":
+            self.approved_module_names |= {
+                k for k in sys.builtin_module_names if not k.startswith("_")
+            }
 
         # if self.load_policy != 'all':
         #     print("allowed modules:", sorted(self.approved_module_names))
         self.used_module_names = {}
-        self.log = logging.getLogger('pystrict3.funcchecker')
+        self.log = logging.getLogger("pystrict3.funcchecker")
 
     def visit_Import(self, node):
         for alias in node.names:
@@ -359,12 +435,14 @@ class ModuleCallLister(ast.NodeVisitor):
         if node.level == 0:
             for alias in node.names:
                 if alias.asname is None:
-                    self.used_module_names[alias.name] = node.module + '.' + alias.name
+                    self.used_module_names[alias.name] = node.module + "." + alias.name
                     # print('+module: %s' % (node.module + '.' + alias.name, alias.name))
                 else:
-                    self.used_module_names[alias.asname] = node.module + '.' + alias.name
+                    self.used_module_names[alias.asname] = (
+                        node.module + "." + alias.name
+                    )
                     # print('+module: %s' % (node.module + '.' + alias.name, alias.asname))
-                self.load_module(node.module + '.' + alias.name)
+                self.load_module(node.module + "." + alias.name)
         self.generic_visit(node)
 
     # lazy load the needed module functions
@@ -377,9 +455,9 @@ class ModuleCallLister(ast.NodeVisitor):
         :param module_name: name of the module
         """
         # if this is a submodule, try to handle by importing the parent
-        parts = module_name.split('.')
-        parent_module = '.'.join(parts[:-1])
-        if parent_module != '':
+        parts = module_name.split(".")
+        parent_module = ".".join(parts[:-1])
+        if parent_module != "":
             self.load_module(parent_module)
             parent_mod = ModuleCallLister.KNOWN_MODULES.get(parent_module)
             if parent_mod is not None:
@@ -393,26 +471,36 @@ class ModuleCallLister(ast.NodeVisitor):
             return ModuleCallLister.KNOWN_MODULES[module_name]
 
         ModuleCallLister.KNOWN_MODULES[module_name] = None
-        if self.load_policy != 'all' and module_name.split('.')[0] not in self.approved_module_names:
+        if (
+            self.load_policy != "all"
+            and module_name.split(".")[0] not in self.approved_module_names
+        ):
             return
 
-        if self.load_policy == 'builtins':
-            if module_name.split('.')[0] not in self.approved_module_names:
+        if self.load_policy == "builtins":
+            if module_name.split(".")[0] not in self.approved_module_names:
                 std_lib = distutils.sysconfig.get_python_lib(standard_lib=True)
-                loadable_std_file = os.path.exists(os.path.join(std_lib, module_name.split('.')[0] + '.py'))
-                loadable_std_dir = os.path.exists(os.path.join(std_lib, module_name.split('.')[0], '__init__.py'))
+                loadable_std_file = os.path.exists(
+                    os.path.join(std_lib, module_name.split(".")[0] + ".py")
+                )
+                loadable_std_dir = os.path.exists(
+                    os.path.join(std_lib, module_name.split(".")[0], "__init__.py")
+                )
                 if not loadable_std_file and not loadable_std_dir:
                     # do not load arbitrary modules
-                    self.log.debug('skipping loading module "%s" outside standard lib' % module_name)
+                    self.log.debug(
+                        'skipping loading module "%s" outside standard lib'
+                        % module_name
+                    )
                     return
 
         try:
-            self.log.info('+loading module %s' % module_name)
+            self.log.info("+loading module %s" % module_name)
             mod = importlib.import_module(module_name)
             ModuleCallLister.KNOWN_MODULES[module_name] = mod
             return mod
         except ImportError:
-            self.log.warning('WARNING: loading module %s failed' % module_name)
+            self.log.warning("WARNING: loading module %s failed" % module_name)
             return None
 
     def get_function(self, module_name, funcname):
@@ -425,10 +513,12 @@ class ModuleCallLister(ast.NodeVisitor):
         assert mod is not None
 
         if funcname != "":
-            for level in funcname.split('.'):
+            for level in funcname.split("."):
                 subm = getattr(mod, level, None)
                 if subm is None:
-                    self.log.debug('skipping unknown function "%s.%s"' % (module_name, level))
+                    self.log.debug(
+                        'skipping unknown function "%s.%s"' % (module_name, level)
+                    )
                     return
                 else:
                     del mod
@@ -453,18 +543,28 @@ class ModuleCallLister(ast.NodeVisitor):
         if inspect.isbuiltin(func) or inspect.isfunction(func):
             try:
                 min_args, max_args = parse_builtin_signature(inspect.signature(func))
-                self.log.debug('+function: "%s.%s" (%d..%d) arguments' % (module_name, funcname, min_args, max_args))
+                self.log.debug(
+                    '+function: "%s.%s" (%d..%d) arguments'
+                    % (module_name, funcname, min_args, max_args)
+                )
             except ValueError:
                 min_args, max_args = 0, -1
-                self.log.debug('+uninspectable callable: "%s.%s"' % (module_name, funcname))
+                self.log.debug(
+                    '+uninspectable callable: "%s.%s"' % (module_name, funcname)
+                )
         elif inspect.isclass(func):
-            min_args, max_args = parse_builtin_signature(inspect.signature(func.__init__))
+            min_args, max_args = parse_builtin_signature(
+                inspect.signature(func.__init__)
+            )
             # remove self from arguments, as it is supplied by Python
             if max_args > 0:
                 max_args -= 1
             min_args -= 1
-            self.log.debug('+class: "%s.%s" (%d..%d) arguments' % (module_name, funcname, min_args, max_args))
-        elif hasattr(func, '__call__'):
+            self.log.debug(
+                '+class: "%s.%s" (%d..%d) arguments'
+                % (module_name, funcname, min_args, max_args)
+            )
+        elif hasattr(func, "__call__"):
             # some type we do not understand, like numpy ufuncs
             min_args, max_args = 0, -1
             self.log.debug('+uninspectable callable: "%s.%s"' % (module_name, funcname))
@@ -478,7 +578,7 @@ class ModuleCallLister(ast.NodeVisitor):
     def visit_Call(self, node):
         self.generic_visit(node)
         if isinstance(node.func, ast.Name):
-            funcname = ''
+            funcname = ""
             module_alias = node.func.id
             module_name = self.used_module_names.get(module_alias)
         elif not isinstance(node.func, ast.Attribute):
@@ -488,13 +588,18 @@ class ModuleCallLister(ast.NodeVisitor):
             funcname = node.func.attr
             module_alias = node.func.value.id
             module_name = self.used_module_names.get(module_alias)
-        elif isinstance(node.func.value, ast.Attribute) and isinstance(node.func.value.value, ast.Name):
-            module_alias = node.func.value.value.id + '.' + node.func.value.attr
+        elif isinstance(node.func.value, ast.Attribute) and isinstance(
+            node.func.value.value, ast.Name
+        ):
+            module_alias = node.func.value.value.id + "." + node.func.value.attr
             funcname = node.func.attr
             module_name = self.used_module_names.get(module_alias)
-            if module_name is None and node.func.value.value.id in self.used_module_names:
+            if (
+                module_name is None
+                and node.func.value.value.id in self.used_module_names
+            ):
                 module_name = self.used_module_names.get(node.func.value.value.id)
-                funcname = node.func.value.attr + '.' + node.func.attr
+                funcname = node.func.value.attr + "." + node.func.attr
         else:
             # print("skipping call: not an 1 or 2-layer attribute: %s")
             return
@@ -504,7 +609,10 @@ class ModuleCallLister(ast.NodeVisitor):
             return
 
         del module_alias
-        if self.load_policy in ('builtin', 'none') and module_name not in self.approved_module_names:
+        if (
+            self.load_policy in ("builtin", "none")
+            and module_name not in self.approved_module_names
+        ):
             self.log.debug('skipping call into unapproved module "%s"' % module_name)
             return
 
@@ -513,14 +621,18 @@ class ModuleCallLister(ast.NodeVisitor):
             return
 
         if self.get_function(module_name, funcname) is None:
-            sys.stderr.write('%s:%d: ERROR: "%s.%s" is not in a known module\n' % (
-                self.filename, node.lineno, module_name, funcname))
+            sys.stderr.write(
+                '%s:%d: ERROR: "%s.%s" is not in a known module\n'
+                % (self.filename, node.lineno, module_name, funcname)
+            )
             sys.exit(1)
 
         signature = self.lazy_load_call(module_name, funcname)
         if signature is None:
-            sys.stderr.write('%s:%d: ERROR: "%s.%s" is not a known function\n' % (
-                self.filename, node.lineno, module_name, funcname))
+            sys.stderr.write(
+                '%s:%d: ERROR: "%s.%s" is not a known function\n'
+                % (self.filename, node.lineno, module_name, funcname)
+            )
             sys.exit(1)
             return
 
@@ -528,15 +640,38 @@ class ModuleCallLister(ast.NodeVisitor):
         min_call_args, may_have_more = count_call_arguments(node)
 
         if max_args >= 0 and min_call_args > max_args:
-            sys.stderr.write('%s:%d: ERROR: function "%s.%s" (%d..%d arguments) called with too many (%d%s) arguments\n' % (
-                self.filename, node.lineno, module_name, funcname,
-                min_args, max_args, min_call_args, '+' if may_have_more else ''))
+            sys.stderr.write(
+                '%s:%d: ERROR: function "%s.%s" (%d..%d arguments) called with too many (%d%s) arguments\n'
+                % (
+                    self.filename,
+                    node.lineno,
+                    module_name,
+                    funcname,
+                    min_args,
+                    max_args,
+                    min_call_args,
+                    "+" if may_have_more else "",
+                )
+            )
             sys.exit(1)
         elif min_call_args < min_args and not may_have_more:
-            sys.stderr.write('%s:%d: ERROR: function "%s.%s" (%d..%d arguments) called with too few (%d%s) arguments\n' % (
-                self.filename, node.lineno, module_name, funcname,
-                min_args, max_args, min_call_args, '+' if may_have_more else ''))
+            sys.stderr.write(
+                '%s:%d: ERROR: function "%s.%s" (%d..%d arguments) called with too few (%d%s) arguments\n'
+                % (
+                    self.filename,
+                    node.lineno,
+                    module_name,
+                    funcname,
+                    min_args,
+                    max_args,
+                    min_call_args,
+                    "+" if may_have_more else "",
+                )
+            )
             sys.exit(1)
         else:
-            self.log.debug('call(%s.%s with %d%s args): OK' % (module_name, funcname, min_call_args, '+' if may_have_more else ''))
+            self.log.debug(
+                "call(%s.%s with %d%s args): OK"
+                % (module_name, funcname, min_call_args, "+" if may_have_more else "")
+            )
             self.checked_calls += 1

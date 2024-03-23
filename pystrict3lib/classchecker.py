@@ -53,11 +53,15 @@ class MethodCallLister(ast.NodeVisitor):
         self.known_methods = known_methods
         self.known_staticmethods = known_staticmethods
         self.class_name = class_name
-        self.log = logging.getLogger('pystrict3.classchecker')
+        self.log = logging.getLogger("pystrict3.classchecker")
 
     def visit_Call(self, node):
         self.generic_visit(node)
-        if not (isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name) and node.func.value.id == 'self'):
+        if not (
+            isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "self"
+        ):
             return
 
         funcname = node.func.attr
@@ -76,17 +80,47 @@ class MethodCallLister(ast.NodeVisitor):
             return
 
         if max_args >= 0 and min_call_args > max_args:
-            sys.stderr.write('%s:%d: ERROR: Class "%s": %s "%s" (%d..%d arguments) called with too many (%d%s) arguments\n' % (
-                self.filename, node.lineno, self.class_name, 'static method' if is_staticmethod else 'method',
-                funcname, min_args, max_args, min_call_args, '+' if may_have_more else ''))
+            sys.stderr.write(
+                '%s:%d: ERROR: Class "%s": %s "%s" (%d..%d arguments) called with too many (%d%s) arguments\n'
+                % (
+                    self.filename,
+                    node.lineno,
+                    self.class_name,
+                    "static method" if is_staticmethod else "method",
+                    funcname,
+                    min_args,
+                    max_args,
+                    min_call_args,
+                    "+" if may_have_more else "",
+                )
+            )
             sys.exit(1)
         elif min_call_args < min_args and not may_have_more:
-            sys.stderr.write('%s:%d: ERROR: Class "%s": %s "%s" (%d..%d arguments) called with too few (%d%s) arguments\n' % (
-                self.filename, node.lineno, self.class_name, 'static method' if is_staticmethod else 'method',
-                funcname, min_args, max_args, min_call_args, '+' if may_have_more else ''))
+            sys.stderr.write(
+                '%s:%d: ERROR: Class "%s": %s "%s" (%d..%d arguments) called with too few (%d%s) arguments\n'
+                % (
+                    self.filename,
+                    node.lineno,
+                    self.class_name,
+                    "static method" if is_staticmethod else "method",
+                    funcname,
+                    min_args,
+                    max_args,
+                    min_call_args,
+                    "+" if may_have_more else "",
+                )
+            )
             sys.exit(1)
         else:
-            self.log.debug("call(%s.%s with %d%s args): OK" % (self.class_name, funcname, min_call_args, '+' if may_have_more else ''))
+            self.log.debug(
+                "call(%s.%s with %d%s args): OK"
+                % (
+                    self.class_name,
+                    funcname,
+                    min_call_args,
+                    "+" if may_have_more else "",
+                )
+            )
 
 
 class ClassPropertiesLister(ast.NodeVisitor):
@@ -97,14 +131,22 @@ class ClassPropertiesLister(ast.NodeVisitor):
         :param filename: file name
         """
         self.filename = filename
-        self.log = logging.getLogger('pystrict3.classchecker')
+        self.log = logging.getLogger("pystrict3.classchecker")
 
     def visit_ClassDef(self, node):
         self.generic_visit(node)
         # skip subclasses metaclasses and other fancy things
-        derived_class = len(node.bases) > 1 \
-            or len(node.bases) > 0 and not (len(node.bases) == 1 and isinstance(node.bases[0], ast.Name) and node.bases[0].id == 'object') \
-            or len(node.keywords) > 0 or len(node.decorator_list) > 0
+        derived_class = (
+            len(node.bases) > 1
+            or len(node.bases) > 0
+            and not (
+                len(node.bases) == 1
+                and isinstance(node.bases[0], ast.Name)
+                and node.bases[0].id == "object"
+            )
+            or len(node.keywords) > 0
+            or len(node.decorator_list) > 0
+        )
         # standalone class
 
         # collect all members
@@ -124,25 +166,44 @@ class ClassPropertiesLister(ast.NodeVisitor):
 
         # collect all assigns
         for child in ast.walk(node):
-            if isinstance(child, ast.Attribute) and isinstance(child.value, ast.Name) and child.value.id == 'self' and isinstance(child.ctx, ast.Store):
+            if (
+                isinstance(child, ast.Attribute)
+                and isinstance(child.value, ast.Name)
+                and child.value.id == "self"
+                and isinstance(child.ctx, ast.Store)
+            ):
                 known_attributes.add(child.attr)
             del child
 
         for child in ast.walk(node):
-            if isinstance(child, ast.Attribute) and isinstance(child.value, ast.Name) and child.value.id == 'self' and isinstance(child.ctx, ast.Load):
+            if (
+                isinstance(child, ast.Attribute)
+                and isinstance(child.value, ast.Name)
+                and child.value.id == "self"
+                and isinstance(child.ctx, ast.Load)
+            ):
                 if child.attr in known_attributes:
-                    self.log.debug("accessing attribute %s.%s: OK" % (node.name, child.attr))
+                    self.log.debug(
+                        "accessing attribute %s.%s: OK" % (node.name, child.attr)
+                    )
                     continue
                 if child.attr in known_members:
-                    self.log.debug("accessing member %s.%s: OK" % (node.name, child.attr))
+                    self.log.debug(
+                        "accessing member %s.%s: OK" % (node.name, child.attr)
+                    )
                     continue
 
                 if derived_class:
-                    self.log.debug("accessing unknown member %s.%s: possibly OK, derived class" % (node.name, child.attr))
+                    self.log.debug(
+                        "accessing unknown member %s.%s: possibly OK, derived class"
+                        % (node.name, child.attr)
+                    )
                     continue
 
-                sys.stderr.write('%s:%d: ERROR: accessing unknown class attribute "%s.%s"\n' % (
-                    self.filename, child.lineno, node.name, child.attr))
+                sys.stderr.write(
+                    '%s:%d: ERROR: accessing unknown class attribute "%s.%s"\n'
+                    % (self.filename, child.lineno, node.name, child.attr)
+                )
                 sys.exit(1)
 
         # verify class members
@@ -150,6 +211,8 @@ class ClassPropertiesLister(ast.NodeVisitor):
         funcs.visit(node)
 
         MethodCallLister(
-            filename=self.filename, class_name=node.name,
-            known_methods=funcs.known_functions, known_staticmethods=funcs.known_staticmethods
+            filename=self.filename,
+            class_name=node.name,
+            known_methods=funcs.known_functions,
+            known_staticmethods=funcs.known_staticmethods,
         ).visit(node)

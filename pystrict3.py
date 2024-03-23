@@ -49,46 +49,61 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 class HelpfulParser(argparse.ArgumentParser):
     def error(self, message):
-        sys.stderr.write('error: %s\n' % message)
+        sys.stderr.write("error: %s\n" % message)
         self.print_help()
         sys.exit(2)
 
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     parser = HelpfulParser(
         description=__doc__,
         epilog="""Johannes Buchner (C) 2020-2022 <johannes.buchner.acad@gmx.com>""",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
 
     parser.add_argument(
-        '--import-builtin', action='store_true',
-        help="""Also load builtin python modules to check function signatures.""")
+        "--import-builtin",
+        action="store_true",
+        help="""Also load builtin python modules to check function signatures.""",
+    )
 
     parser.add_argument(
-        '--import-any', action='store_true',
+        "--import-any",
+        action="store_true",
         help="""Also load any modules specified in import statements to check function signatures.
-        Warning: can execute arbitrary module code.""")
+        Warning: can execute arbitrary module code.""",
+    )
 
     parser.add_argument(
-        '--allow-redefining', default=False, action='store_true',
-        help="""Allow redefining variables.""")
+        "--allow-redefining",
+        default=False,
+        action="store_true",
+        help="""Allow redefining variables.""",
+    )
 
     parser.add_argument(
-        '--verbose', '-v', default=False, action='store_true',
-        help="""More verbose logging output.""")
+        "--verbose",
+        "-v",
+        default=False,
+        action="store_true",
+        help="""More verbose logging output.""",
+    )
 
-    parser.add_argument('filenames', type=str, nargs='+', help="""python files to parse""")
+    parser.add_argument(
+        "filenames", type=str, nargs="+", help="""python files to parse"""
+    )
 
     args = parser.parse_args()
 
-    logger = logging.getLogger('pystrict3')
+    logger = logging.getLogger("pystrict3")
     handler = logging.StreamHandler(sys.stderr)
     handler.setLevel(logging.DEBUG if args.verbose else logging.INFO)
-    formatter = logging.Formatter('[%(levelname)s] %(message)s')
+    formatter = logging.Formatter("[%(levelname)s] %(message)s")
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     logger.setLevel(logging.DEBUG if args.verbose else logging.INFO)
 
-    module_load_policy = 'all' if args.import_any else 'builtins' if args.import_builtin else 'none'
+    module_load_policy = (
+        "all" if args.import_any else "builtins" if args.import_builtin else "none"
+    )
     pystrict3lib.main(args.filenames, module_load_policy, args.allow_redefining)

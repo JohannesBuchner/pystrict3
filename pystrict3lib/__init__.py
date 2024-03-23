@@ -10,7 +10,13 @@ import logging
 import operator
 import re
 
-from .funcchecker import FuncLister, list_documented_parameters, max_documented_returns, CallLister, ModuleCallLister
+from .funcchecker import (
+    FuncLister,
+    list_documented_parameters,
+    max_documented_returns,
+    CallLister,
+    ModuleCallLister,
+)
 from .classchecker import ClassPropertiesLister
 
 """
@@ -44,69 +50,71 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 first_item_getter = operator.itemgetter(0)
 
-preknown = set(builtins.__dict__).union({'__doc__', '__file__', '__name__', '__annotations__', '__dict__', '__builtins__'})
+preknown = set(builtins.__dict__).union(
+    {"__doc__", "__file__", "__name__", "__annotations__", "__dict__", "__builtins__"}
+)
 
 
 def get_arg_ids(node):
     """List variable names mentioned in a node.
-Parameters
------------
-node: <TYPE>
-    <MEANING OF node>
-"""
-    if hasattr(node, 'args') and isinstance(node.args, ast.arguments):
+    Parameters
+    -----------
+    node: <TYPE>
+        <MEANING OF node>
+    """
+    if hasattr(node, "args") and isinstance(node.args, ast.arguments):
         args = node.args
         for arg in args.args:
             yield arg.arg
             del arg
-        if hasattr(args, 'kwonlyargs'):
+        if hasattr(args, "kwonlyargs"):
             for arg in args.kwonlyargs:
                 yield arg.arg
-        if getattr(args, 'vararg', None) is not None:
+        if getattr(args, "vararg", None) is not None:
             yield args.vararg.arg
-        if getattr(args, 'kwarg', None) is not None:
+        if getattr(args, "kwarg", None) is not None:
             yield args.kwarg.arg
 
 
 def get_assigned_ids(node):
     """List variable names being assigned in a node.
-Parameters
------------
-node: <TYPE>
-    <MEANING OF node>
-"""
+    Parameters
+    -----------
+    node: <TYPE>
+        <MEANING OF node>
+    """
     if isinstance(node, ast.Name) and not isinstance(node.ctx, ast.Del):
         yield node.id
-    if hasattr(node, 'target'):
+    if hasattr(node, "target"):
         yield from get_assigned_ids(node.target)
-    if hasattr(node, 'targets'):
+    if hasattr(node, "targets"):
         for target in node.targets:
             yield from get_assigned_ids(target)
-    if hasattr(node, 'names'):
+    if hasattr(node, "names"):
         for target in node.names:
             if target.asname is not None:
                 yield target.asname
             else:
                 yield target.name
         else:
-            yield target.name.split('.')[0]
-    if hasattr(node, 'elts'):
+            yield target.name.split(".")[0]
+    if hasattr(node, "elts"):
         for el in node.elts:
             yield from get_assigned_ids(el)
 
 
 def get_deleted_ids(node):
     """List variable names being deleted in a node.
-Parameters
------------
-node: <TYPE>
-    <MEANING OF node>
-"""
+    Parameters
+    -----------
+    node: <TYPE>
+        <MEANING OF node>
+    """
     if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Del):
         yield node.id
-    if hasattr(node, 'target'):
+    if hasattr(node, "target"):
         yield from get_deleted_ids(node.target)
-    if hasattr(node, 'targets'):
+    if hasattr(node, "targets"):
         for target in node.targets:
             yield from get_deleted_ids(target)
 
@@ -116,7 +124,14 @@ def is_container(node):
 
     :param node: AST node
     """
-    return isinstance(node, ast.FunctionDef) or isinstance(node, ast.AsyncFunctionDef) or isinstance(node, ast.ClassDef) or isinstance(node, ast.Lambda) or isinstance(node, ast.Expr) or isinstance(node, ast.Call)
+    return (
+        isinstance(node, ast.FunctionDef)
+        or isinstance(node, ast.AsyncFunctionDef)
+        or isinstance(node, ast.ClassDef)
+        or isinstance(node, ast.Lambda)
+        or isinstance(node, ast.Expr)
+        or isinstance(node, ast.Call)
+    )
 
 
 def get_all_ids(node):
@@ -126,40 +141,40 @@ def get_all_ids(node):
     """
     if is_container(node):
         return
-    if hasattr(node, 'name'):
-        yield node.name.split('.')[0]
-    if hasattr(node, 'id'):
+    if hasattr(node, "name"):
+        yield node.name.split(".")[0]
+    if hasattr(node, "id"):
         yield node.id
-    if hasattr(node, 'target'):
+    if hasattr(node, "target"):
         yield from get_all_ids(node.target)
-    if hasattr(node, 'targets'):
+    if hasattr(node, "targets"):
         for target in node.targets:
             yield from get_all_ids(target)
-    if hasattr(node, 'elts'):
+    if hasattr(node, "elts"):
         for el in node.elts:
             yield from get_all_ids(el)
-    if hasattr(node, 'items'):
+    if hasattr(node, "items"):
         for el in node.items:
             if el.optional_vars is not None:
                 yield from get_all_ids(el.optional_vars)
-    if hasattr(node, 'args'):
+    if hasattr(node, "args"):
         if isinstance(node.args, ast.arguments):
             args = node.args
             for arg in args.args:
                 yield arg.arg
                 del arg
-            if hasattr(args, 'kwonlyargs'):
+            if hasattr(args, "kwonlyargs"):
                 for arg in args.kwonlyargs:
                     yield arg.arg
-            if getattr(args, 'vararg', None) is not None:
+            if getattr(args, "vararg", None) is not None:
                 yield args.vararg.arg
-            if getattr(args, 'kwarg', None) is not None:
+            if getattr(args, "kwarg", None) is not None:
                 yield args.kwarg.arg
         else:
             for arg in node.args:
                 yield from get_all_ids(arg)
                 del arg
-    if hasattr(node, 'value') and not isinstance(node, ast.Attribute):
+    if hasattr(node, "value") and not isinstance(node, ast.Attribute):
         yield from get_all_ids(node.value)
 
 
@@ -171,8 +186,16 @@ def block_terminates(statements):
     for statement in statements:
         if isinstance(statement, ast.Return):
             return True
-        if isinstance(statement, ast.Expr) and isinstance(statement.value, ast.Call) and isinstance(statement.value.func, ast.Attribute) and isinstance(statement.value.func.value, ast.Name):
-            if statement.value.func.value.id == 'sys' and statement.value.func.attr == 'exit':
+        if (
+            isinstance(statement, ast.Expr)
+            and isinstance(statement.value, ast.Call)
+            and isinstance(statement.value.func, ast.Attribute)
+            and isinstance(statement.value.func.value, ast.Name)
+        ):
+            if (
+                statement.value.func.value.id == "sys"
+                and statement.value.func.attr == "exit"
+            ):
                 return True
     return False
 
@@ -189,13 +212,15 @@ class FuncDocVerifier(ast.NodeVisitor):
             Python file name
         """
         self.filename = filename
-        self.log = logging.getLogger('pystrict3.funcdoc')
+        self.log = logging.getLogger("pystrict3.funcdoc")
         self.undocumented_parameters_found = False
         self.undocumented_returns_found = False
         self.class_methods = []
         self.checked_docstrings = 0
 
-    KNOWN_DIRECTIVES = ':mod: :func: :data: :const: :class: :meth: :attr: :exc: :obj:'.split()
+    KNOWN_DIRECTIVES = (
+        ":mod: :func: :data: :const: :class: :meth: :attr: :exc: :obj:".split()
+    )
 
     def visit_ClassDef(self, node):
         """Handle class docstrings.
@@ -211,7 +236,12 @@ class FuncDocVerifier(ast.NodeVisitor):
                 self.class_methods.append(child)
         docstring = ast.get_docstring(node, clean=True)
         if docstring is None:
-            self.log.debug('%s:%d:no docstring for class "%s"', self.filename, node.lineno, node.name)
+            self.log.debug(
+                '%s:%d:no docstring for class "%s"',
+                self.filename,
+                node.lineno,
+                node.name,
+            )
             return
         self.find_directives(docstring, node.name, node.body[0].value.lineno)
         self.generic_visit(node)
@@ -234,38 +264,61 @@ class FuncDocVerifier(ast.NodeVisitor):
         outstream: File
             Output file to write output information to
         """
-        if '<' in docstring:
-            pattern = r'`.*[^ ]( ?)<[^>]*>`(_?)'
-            for i, line in enumerate(docstring.split('\n')):
-                if '<' not in line:
+        if "<" in docstring:
+            pattern = r"`.*[^ ]( ?)<[^>]*>`(_?)"
+            for i, line in enumerate(docstring.split("\n")):
+                if "<" not in line:
                     continue
                 matches = re.finditer(pattern, line)
                 for match in matches:
-                    if match.group(1) == '':
-                        outstream.write('%s:%d: docstring WARNING: rst link needs space before <url>.\n' % (
-                            self.filename, lineno + i))
-                    if match.group(2) == '':
-                        outstream.write('%s:%d: docstring WARNING: rst link should end with _.\n' % (
-                            self.filename, lineno + i))
+                    if match.group(1) == "":
+                        outstream.write(
+                            "%s:%d: docstring WARNING: rst link needs space before <url>.\n"
+                            % (self.filename, lineno + i)
+                        )
+                    if match.group(2) == "":
+                        outstream.write(
+                            "%s:%d: docstring WARNING: rst link should end with _.\n"
+                            % (self.filename, lineno + i)
+                        )
 
-        if ':' in docstring:
-            pattern = r'(:py)?(:?[a-z]{1,20}:?)(`?)'
-            for i, line in enumerate(docstring.split('\n')):
-                if ':' not in line:
+        if ":" in docstring:
+            pattern = r"(:py)?(:?[a-z]{1,20}:?)(`?)"
+            for i, line in enumerate(docstring.split("\n")):
+                if ":" not in line:
                     continue
                 matches = re.finditer(pattern, line)
                 for match in matches:
                     # print('matchgroup: "%s" "%s" "%s"' % (match.group(0), match.group(1), match.group(2)))
-                    if match.group(1) is None and match.group(2) in self.KNOWN_DIRECTIVES:
-                        outstream.write('%s:%d: docstring WARNING: "%s" should be ":py%s".\n' % (
-                            self.filename, lineno + i, match.group(2), match.group(2)))
-                    elif match.group(1) == ':py':
+                    if (
+                        match.group(1) is None
+                        and match.group(2) in self.KNOWN_DIRECTIVES
+                    ):
+                        outstream.write(
+                            '%s:%d: docstring WARNING: "%s" should be ":py%s".\n'
+                            % (
+                                self.filename,
+                                lineno + i,
+                                match.group(2),
+                                match.group(2),
+                            )
+                        )
+                    elif match.group(1) == ":py":
                         if match.group(2) not in self.KNOWN_DIRECTIVES:
-                            outstream.write('%s:%d: docstring WARNING: unknown directive "%s%s".\n' % (
-                                self.filename, lineno + i, match.group(1), match.group(2)))
-                        elif match.group(3) != '`':
-                            outstream.write('%s:%d: docstring WARNING: directive should continue with `quotes`.\n' % (
-                                self.filename, lineno + i))
+                            outstream.write(
+                                '%s:%d: docstring WARNING: unknown directive "%s%s".\n'
+                                % (
+                                    self.filename,
+                                    lineno + i,
+                                    match.group(1),
+                                    match.group(2),
+                                )
+                            )
+                        elif match.group(3) != "`":
+                            outstream.write(
+                                "%s:%d: docstring WARNING: directive should continue with `quotes`.\n"
+                                % (self.filename, lineno + i)
+                            )
 
     def visit_FunctionDef(self, node):
         """Handle function docstrings.
@@ -279,11 +332,16 @@ class FuncDocVerifier(ast.NodeVisitor):
         # allow "Parameters" as first line as well by prepending a newline
         func_docstring = ast.get_docstring(node, clean=True)
         if func_docstring is None:
-            self.log.debug('%s:%d:no docstring for function "%s"', self.filename, node.lineno, node.name)
+            self.log.debug(
+                '%s:%d:no docstring for function "%s"',
+                self.filename,
+                node.lineno,
+                node.name,
+            )
             return
         self.find_directives(func_docstring, node.name, node.body[0].value.lineno)
 
-        documented_parameters = list_documented_parameters('\n' + func_docstring)
+        documented_parameters = list_documented_parameters("\n" + func_docstring)
         function_arguments = [arg.arg for arg in arguments.args]
         variable_length = arguments.vararg or arguments.kwarg
         if node in self.class_methods:
@@ -292,45 +350,82 @@ class FuncDocVerifier(ast.NodeVisitor):
             argument_names = function_arguments
         del function_arguments
         if len(documented_parameters) == 0:
-            if len(argument_names) > 0 and not node.name.startswith('_'):
-                sys.stderr.write('%s:%d: WARNING: function "%s" does not have any parameter docs\n' % (
-                    self.filename, node.lineno, node.name))
+            if len(argument_names) > 0 and not node.name.startswith("_"):
+                sys.stderr.write(
+                    '%s:%d: WARNING: function "%s" does not have any parameter docs\n'
+                    % (self.filename, node.lineno, node.name)
+                )
             return
         self.checked_docstrings += 1
-        self.log.debug("documented parameters of %s: %s", node.name, ', '.join(documented_parameters))
+        self.log.debug(
+            "documented parameters of %s: %s",
+            node.name,
+            ", ".join(documented_parameters),
+        )
         for arg in argument_names:
             if arg not in documented_parameters:
-                sys.stderr.write('%s:%d: ERROR: argument "%s" of "%s" missing in docstring\n' % (
-                    self.filename, node.lineno, arg, node.name))
+                sys.stderr.write(
+                    '%s:%d: ERROR: argument "%s" of "%s" missing in docstring\n'
+                    % (self.filename, node.lineno, arg, node.name)
+                )
                 self.undocumented_parameters_found |= True
             del arg
         if not variable_length:
             for arg in documented_parameters:
-                if not arg.startswith('*') and arg not in argument_names:
-                    sys.stderr.write('%s:%d: ERROR: "%s" in docstring is not an argument of "%s"\n' % (
-                        self.filename, node.lineno, arg, node.name))
+                if not arg.startswith("*") and arg not in argument_names:
+                    sys.stderr.write(
+                        '%s:%d: ERROR: "%s" in docstring is not an argument of "%s"\n'
+                        % (self.filename, node.lineno, arg, node.name)
+                    )
                     self.undocumented_parameters_found |= True
                 del arg
 
         all_returns = [
             (return_tuple_length, return_node)
             for return_tuple_length, return_node in self._walk_tree(node.body)
-            if return_tuple_length > 1]
+            if return_tuple_length > 1
+        ]
         if len(all_returns) == 0:
             return
         return_tuple_length, return_node = max(all_returns, key=first_item_getter)
         if return_tuple_length > 1:
             # see if a return tuple is documented
             num_documented_returns = max_documented_returns(func_docstring)
-            self.log.debug("%s returns at most %s values; %s documented", node.name, return_tuple_length, num_documented_returns)
-            if num_documented_returns is not None and return_tuple_length > num_documented_returns:
-                names = [getattr(el, 'id', 'var') for el in return_node.elts]
+            self.log.debug(
+                "%s returns at most %s values; %s documented",
+                node.name,
+                return_tuple_length,
+                num_documented_returns,
+            )
+            if (
+                num_documented_returns is not None
+                and return_tuple_length > num_documented_returns
+            ):
+                names = [getattr(el, "id", "var") for el in return_node.elts]
                 if num_documented_returns == 1:
-                    sys.stderr.write('%s:%d: WARNING: function "%s" may not document return of %d elements as in line %d: (%s)\n' % (
-                        self.filename, node.lineno, node.name, return_tuple_length, return_node.lineno, ', '.join(names)))
+                    sys.stderr.write(
+                        '%s:%d: WARNING: function "%s" may not document return of %d elements as in line %d: (%s)\n'
+                        % (
+                            self.filename,
+                            node.lineno,
+                            node.name,
+                            return_tuple_length,
+                            return_node.lineno,
+                            ", ".join(names),
+                        )
+                    )
                 else:
-                    sys.stderr.write('%s:%d: ERROR: function "%s" does not document return of %d elements as in line %d: (%s)\n' % (
-                        self.filename, node.lineno, node.name, return_tuple_length, return_node.lineno, ', '.join(names)))
+                    sys.stderr.write(
+                        '%s:%d: ERROR: function "%s" does not document return of %d elements as in line %d: (%s)\n'
+                        % (
+                            self.filename,
+                            node.lineno,
+                            node.name,
+                            return_tuple_length,
+                            return_node.lineno,
+                            ", ".join(names),
+                        )
+                    )
                     self.undocumented_returns_found |= True
         self.generic_visit(node)
 
@@ -344,20 +439,20 @@ class FuncDocVerifier(ast.NodeVisitor):
         """
         for node in nodes:
             if isinstance(node, ast.Return):
-                yield len(getattr(node.value, 'elts', [])), node.value
+                yield len(getattr(node.value, "elts", [])), node.value
 
-            if hasattr(node, 'body'):
+            if hasattr(node, "body"):
                 body = node.body if isinstance(node.body, list) else [node.body]
                 yield from self._walk_tree(body)
 
-            if getattr(node, 'orelse', []) != []:
+            if getattr(node, "orelse", []) != []:
                 yield from self._walk_tree(node.orelse)
 
-            if getattr(node, 'finalbody', []) != []:
+            if getattr(node, "finalbody", []) != []:
                 yield from self._walk_tree(node.finalbody)
 
 
-class NameAssignVerifier():
+class NameAssignVerifier:
     """Verify name definitions and access.
 
     Makes sure variables that are defined have not been defined before,
@@ -369,7 +464,7 @@ class NameAssignVerifier():
 
     def __init__(self, filename, allow_variable_reuse=False):
         self.filename = filename
-        self.log = logging.getLogger('pystrict3.nameassign')
+        self.log = logging.getLogger("pystrict3.nameassign")
         self.found_variable_unknown = False
         self.found_variable_reused = False
         self.allow_variable_reuse = allow_variable_reuse
@@ -387,7 +482,9 @@ class NameAssignVerifier():
         name: str
             variable name
         """
-        sys.stderr.write('%s:%d: ERROR: Variable unknown: "%s"\n' % (self.filename, lineno, name))
+        sys.stderr.write(
+            '%s:%d: ERROR: Variable unknown: "%s"\n' % (self.filename, lineno, name)
+        )
         self.found_variable_unknown |= True
         raise Exception(name)
 
@@ -412,20 +509,26 @@ class NameAssignVerifier():
             previous_state, _ = known[name]
             if name in preknown:
                 if not override_with_builtins:
-                    sys.stderr.write('%s:%d: ERROR: Overwriting builtin variable: "%s"\n' % (
-                        self.filename, lineno, name))
+                    sys.stderr.write(
+                        '%s:%d: ERROR: Overwriting builtin variable: "%s"\n'
+                        % (self.filename, lineno, name)
+                    )
                     self.found_builtin_overwritten |= True
-            elif name == '_':
+            elif name == "_":
                 # throwaway variable is allowed to be overridden
                 pass
             elif previous_state is not None and previous_state:
                 self.found_variable_reused |= True
                 if self.allow_variable_reuse:
-                    sys.stderr.write('%s:%d: WARNING: Variable "%s" set previously in line %d may have changed meaning\n' % (
-                        self.filename, lineno, name, known[name][1]))
+                    sys.stderr.write(
+                        '%s:%d: WARNING: Variable "%s" set previously in line %d may have changed meaning\n'
+                        % (self.filename, lineno, name, known[name][1])
+                    )
                 else:
-                    sys.stderr.write('%s:%d: ERROR: Variable "%s" set previously defined in line %d, is redefined here\n' % (
-                        self.filename, lineno, name, known[name][1]))
+                    sys.stderr.write(
+                        '%s:%d: ERROR: Variable "%s" set previously defined in line %d, is redefined here\n'
+                        % (self.filename, lineno, name, known[name][1])
+                    )
         else:
             self.unknown_checked += 1
 
@@ -443,33 +546,47 @@ class NameAssignVerifier():
         """
         add = {}
         forget = set()
-        self.log.debug('check_new_identifiers: known: %s', known.keys() - preknown)
+        self.log.debug("check_new_identifiers: known: %s", known.keys() - preknown)
         for el in elements:
-            self.log.debug('check_new_identifiers: element %s', type(el).__name__)
+            self.log.debug("check_new_identifiers: element %s", type(el).__name__)
             add_here = {}
             forget_here = set()
             # find all name nodes and look at ids
-            if hasattr(el, 'names'):
+            if hasattr(el, "names"):
                 names = el.names
                 for name in names:
-                    if getattr(name, 'asname', None) is not None:
-                        name = getattr(name, 'asname')
-                    elif hasattr(name, 'name'):
+                    if getattr(name, "asname", None) is not None:
+                        name = getattr(name, "asname")
+                    elif hasattr(name, "name"):
                         name = name.name
-                    self.log.debug('check_new_identifiers: name %s from module %s', name, getattr(node, 'module', ''))
+                    self.log.debug(
+                        "check_new_identifiers: name %s from module %s",
+                        name,
+                        getattr(node, "module", ""),
+                    )
                     self.assert_unknown(
-                        name, known, el.lineno,
-                        override_with_builtins=getattr(node, 'module', '') in ('builtins', 'six.moves'))
-                    name = name.split('.')[0]
+                        name,
+                        known,
+                        el.lineno,
+                        override_with_builtins=getattr(node, "module", "")
+                        in ("builtins", "six.moves"),
+                    )
+                    name = name.split(".")[0]
                     add_here[name] = el.lineno
                 del name, names
-            if hasattr(el, 'targets'):
+            if hasattr(el, "targets"):
                 targets = el.targets
                 for target in targets:
-                    self.log.debug('check_new_identifiers: target %s with ids: %s', target, set(get_assigned_ids(target)))
+                    self.log.debug(
+                        "check_new_identifiers: target %s with ids: %s",
+                        target,
+                        set(get_assigned_ids(target)),
+                    )
                     for name in get_assigned_ids(target):
-                        if isinstance(getattr(target, 'ctx'), ast.Del):
-                            self.log.debug('check_new_identifiers: del target name %s', name)
+                        if isinstance(getattr(target, "ctx"), ast.Del):
+                            self.log.debug(
+                                "check_new_identifiers: del target name %s", name
+                            )
                             if name in add:
                                 del add[name]
                             if name in add_here:
@@ -478,14 +595,16 @@ class NameAssignVerifier():
                                 del known[name]
                             forget_here.add(name)
                         else:
-                            self.log.debug('check_new_identifiers: add target name %s', name)
+                            self.log.debug(
+                                "check_new_identifiers: add target name %s", name
+                            )
                             self.assert_unknown(name, known, el.lineno)
                             add_here[name] = el.lineno
                 del target, targets
-            if hasattr(el, 'items'):
+            if hasattr(el, "items"):
                 items = el.items
                 for item in items:
-                    self.log.debug('check_new_identifiers: item %s', item)
+                    self.log.debug("check_new_identifiers: item %s", item)
                     if item.optional_vars is None:
                         names = item.context_expr
                     else:
@@ -495,49 +614,71 @@ class NameAssignVerifier():
                         add_here[name] = el.lineno
                     del names
                 del item, items
-            if hasattr(el, 'iter') and isinstance(el.iter, ast.DictComp) and isinstance(el.iter, ast.Name):
+            if (
+                hasattr(el, "iter")
+                and isinstance(el.iter, ast.DictComp)
+                and isinstance(el.iter, ast.Name)
+            ):
                 name = el.iter.id
-                self.log.debug('check_new_identifiers: iter variable %s', name)
+                self.log.debug("check_new_identifiers: iter variable %s", name)
                 self.assert_unknown(name, known, el.lineno)
                 add_here[name] = node.lineno
-            if hasattr(el, 'target') and not isinstance(el, ast.AugAssign):
+            if hasattr(el, "target") and not isinstance(el, ast.AugAssign):
                 for name in get_assigned_ids(el.target):
-                    self.log.debug('check_new_identifiers: target %s', name)
+                    self.log.debug("check_new_identifiers: target %s", name)
                     self.assert_unknown(name, known, el.lineno)
                     add_here[name] = node.lineno
-            if hasattr(el, 'generators'):
+            if hasattr(el, "generators"):
                 generators = el.generators
                 for target in generators:
                     for name in get_assigned_ids(target):
-                        self.log.debug('check_new_identifiers: generator %s', name)
+                        self.log.debug("check_new_identifiers: generator %s", name)
                         self.assert_unknown(name, known, el.lineno)
                         add_here[name] = el.lineno
                         forget_here.add(name)
                 del target, generators
-            if hasattr(el, 'name'):
+            if hasattr(el, "name"):
                 if el.name is not None:
-                    self.log.debug('check_new_identifiers: name %s', el.name)
+                    self.log.debug("check_new_identifiers: name %s", el.name)
                     self.assert_unknown(el.name, known, el.lineno)
                     add_here[el.name] = el.lineno
-            self.log.debug('forget here: %s, %s, add here: %s %s ----', forget_here, forget - forget_here, set(add_here.keys()), add.keys() - add_here.keys())
-            self.log.debug('checking access: %s', sorted(get_all_ids(el)))
+            self.log.debug(
+                "forget here: %s, %s, add here: %s %s ----",
+                forget_here,
+                forget - forget_here,
+                set(add_here.keys()),
+                add.keys() - add_here.keys(),
+            )
+            self.log.debug("checking access: %s", sorted(get_all_ids(el)))
             for name in get_all_ids(el):
                 self.known_checked += 1
-                if isinstance(getattr(el, 'ctx', None), ast.Del) or isinstance(el, ast.Delete):
-                    self.log.debug('check_new_identifiers: check delete name %s', name)
+                if isinstance(getattr(el, "ctx", None), ast.Del) or isinstance(
+                    el, ast.Delete
+                ):
+                    self.log.debug("check_new_identifiers: check delete name %s", name)
                     if name in known or name in add or name in add_here:
                         pass
-                    elif isinstance(node, ast.Try) and any(isinstance(handler.type, ast.Name) and handler.type.id == 'NameError' for handler in node.handlers if isinstance(handler, ast.ExceptHandler)):
+                    elif isinstance(node, ast.Try) and any(
+                        isinstance(handler.type, ast.Name)
+                        and handler.type.id == "NameError"
+                        for handler in node.handlers
+                        if isinstance(handler, ast.ExceptHandler)
+                    ):
                         # this is in a construct for testing whether a variable exists
                         pass
                     else:
                         # self.log.debug('known: %s', sorted(known.keys()))
                         self.variable_unknown_found(el.lineno, name)
                 else:
-                    self.log.debug('check_new_identifiers: check name %s', name)
+                    self.log.debug("check_new_identifiers: check name %s", name)
                     if name in known or name in add or name in add_here:
                         pass
-                    elif isinstance(node, ast.Try) and any(isinstance(handler.type, ast.Name) and handler.type.id == 'NameError' for handler in node.handlers if isinstance(handler, ast.ExceptHandler)):
+                    elif isinstance(node, ast.Try) and any(
+                        isinstance(handler.type, ast.Name)
+                        and handler.type.id == "NameError"
+                        for handler in node.handlers
+                        if isinstance(handler, ast.ExceptHandler)
+                    ):
                         # this is in a construct for testing whether a variable exists
                         pass
                     else:
@@ -556,7 +697,7 @@ class NameAssignVerifier():
             if name in known:
                 # print('-%s' % name)
                 del known[name]
-        self.log.debug('known: %s', known.keys() - preknown)
+        self.log.debug("known: %s", known.keys() - preknown)
 
     def walk_tree(self, nodes, preknown={}, depth=0):
         """<summary sentence of function in imperative>.
@@ -576,55 +717,65 @@ class NameAssignVerifier():
             <MEANING OF known_nodes>
         """
         known_nodes = dict(**preknown)
-        depthstr = ' ' * depth
+        depthstr = " " * depth
         terminated = False
         for node in nodes:
             # print(); import pprintast; pprintast.pprintast(node)
             if isinstance(node, ast.Return):
                 terminated |= True
                 break
-            if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Attribute) and isinstance(node.value.func.value, ast.Name):
-                if node.value.func.value.id == 'sys' and node.value.func.attr == 'exit':
+            if (
+                isinstance(node, ast.Expr)
+                and isinstance(node.value, ast.Call)
+                and isinstance(node.value.func, ast.Attribute)
+                and isinstance(node.value.func.value, ast.Name)
+            ):
+                if node.value.func.value.id == "sys" and node.value.func.attr == "exit":
                     terminated |= True
                     break
             self.log.debug(
-                '%swalk tree: %s[args:%s, assigned:%s] (terminating: %d)', depthstr,
-                type(node).__name__, set(get_arg_ids(node)), set(get_assigned_ids(node)), terminated)
+                "%swalk tree: %s[args:%s, assigned:%s] (terminating: %d)",
+                depthstr,
+                type(node).__name__,
+                set(get_arg_ids(node)),
+                set(get_assigned_ids(node)),
+                terminated,
+            )
 
             # modified = getattr(node, 'decorator_list', []) != []
 
             if not is_container(node):
                 self.check_new_identifiers([node], node, dict(**known_nodes))
-            elif hasattr(node, 'name'):
-                self.log.debug('%s+node name: %s', depthstr, node.name)
+            elif hasattr(node, "name"):
+                self.log.debug("%s+node name: %s", depthstr, node.name)
                 self.assert_unknown(node.name, known_nodes, node.lineno)
                 known_nodes[node.name] = (True, node.lineno)
 
             if not isinstance(node, ast.AugAssign) and not isinstance(node, ast.Name):
                 for name in get_assigned_ids(node):
-                    self.log.debug('%s+node assigned name: %s', depthstr, name)
+                    self.log.debug("%s+node assigned name: %s", depthstr, name)
                     if isinstance(node, ast.Assign):
                         self.assert_unknown(name, known_nodes, node.lineno)
                     known_nodes[name] = (True, node.lineno)
             for name in get_deleted_ids(node):
-                self.log.debug('%s+node deleted name: %s', depthstr, name)
+                self.log.debug("%s+node deleted name: %s", depthstr, name)
                 known_nodes[name] = (False, node.lineno)
 
-            if hasattr(node, 'generators'):
+            if hasattr(node, "generators"):
                 # ignore result, because variables do not leak out
                 for g in node.generators[::-1]:
                     for name in get_assigned_ids(g):
-                        self.log.debug('%s+generator %s name: %s', depthstr, g, name)
+                        self.log.debug("%s+generator %s name: %s", depthstr, g, name)
                         self.assert_unknown(name, known_nodes, node.lineno)
                         known_nodes[name] = (True, node.lineno)
                     self.walk_tree([g.target], known_nodes, depth + 1)
-            if hasattr(node, 'test'):
+            if hasattr(node, "test"):
                 # ignore result, because variables do not leak out
                 self.check_new_identifiers([node.test], node, dict(**known_nodes))
-            if hasattr(node, 'iter'):
+            if hasattr(node, "iter"):
                 # ignore result, because variables do not leak out
                 self.check_new_identifiers([node.iter], node, dict(**known_nodes))
-            if hasattr(node, 'value'):
+            if hasattr(node, "value"):
                 # ignore result, because variables do not leak out
                 self.walk_tree([node.value], dict(**known_nodes), depth + 1)
 
@@ -632,82 +783,101 @@ class NameAssignVerifier():
             nbranches = 0
 
             known_nodes2 = dict(**known_nodes)
-            if hasattr(node, 'args') and isinstance(node.args, ast.arguments):
-                self.log.debug('checking call args: %s', node.args)
+            if hasattr(node, "args") and isinstance(node.args, ast.arguments):
+                self.log.debug("checking call args: %s", node.args)
                 for name in get_arg_ids(node):
-                    self.log.debug('checking call arg: %s', name)
+                    self.log.debug("checking call arg: %s", name)
                     self.assert_unknown(name, known_nodes2, node.lineno)
                     known_nodes2[name] = (True, node.lineno)
             else:
-                for arg in getattr(node, 'args', []) + getattr(node, 'keywords', []):
+                for arg in getattr(node, "args", []) + getattr(node, "keywords", []):
                     for name in get_all_ids(arg):
                         # state may be unclear, in which case we should not perform the check
-                        if name not in known_nodes or known_nodes[name][0] not in (True, None):
+                        if name not in known_nodes or known_nodes[name][0] not in (
+                            True,
+                            None,
+                        ):
                             self.variable_unknown_found(node.lineno, name)
                         known_nodes2[name] = (True, node.lineno)
-            for withitem in getattr(node, 'items', []):
+            for withitem in getattr(node, "items", []):
                 name = withitem.optional_vars
                 if name is not None:
                     known_nodes2[name.id] = (True, node.lineno)
-            if hasattr(node, 'body'):
+            if hasattr(node, "body"):
                 body = node.body if isinstance(node.body, list) else [node.body]
                 members = self.walk_tree(body, known_nodes2, depth + 1)
                 if not is_container(node) and not block_terminates(body):
                     nbranches += 1
                     for name, var in members.items():
                         if name not in known_nodes or known_nodes[name][0] != var[0]:
-                            nodes_to_add[name] = (nodes_to_add.get(name, (0, None))[0] + 1, var)
-                self.log.debug('%s+nodes from body: %s', depthstr, nodes_to_add)
+                            nodes_to_add[name] = (
+                                nodes_to_add.get(name, (0, None))[0] + 1,
+                                var,
+                            )
+                self.log.debug("%s+nodes from body: %s", depthstr, nodes_to_add)
 
-            for handler in getattr(node, 'handlers', []):
+            for handler in getattr(node, "handlers", []):
                 if not block_terminates(handler.body):
                     nbranches += 1
                     known_nodes2 = dict(**known_nodes)
                     if handler.name is not None:
                         known_nodes2[handler.name] = (True, handler.lineno)
-                        nodes_to_add[handler.name] = (nodes_to_add.get(handler.name, (0, None))[0] + 1, (True, handler.lineno))
+                        nodes_to_add[handler.name] = (
+                            nodes_to_add.get(handler.name, (0, None))[0] + 1,
+                            (True, handler.lineno),
+                        )
                     for name, var in members.items():
                         if name not in known_nodes or known_nodes[name][0] != var[0]:
-                            nodes_to_add[name] = (nodes_to_add.get(name, (0, None))[0] + 1, var)
+                            nodes_to_add[name] = (
+                                nodes_to_add.get(name, (0, None))[0] + 1,
+                                var,
+                            )
                 members = self.walk_tree(handler.body, known_nodes2, depth + 1)
-                self.log.debug('%s+nodes from handlers: %s', depthstr, nodes_to_add)
+                self.log.debug("%s+nodes from handlers: %s", depthstr, nodes_to_add)
 
-            if getattr(node, 'orelse', None) is not None:
-                self.log.debug('%s+nodes from else: %s', depthstr, node.orelse)
+            if getattr(node, "orelse", None) is not None:
+                self.log.debug("%s+nodes from else: %s", depthstr, node.orelse)
                 members = self.walk_tree([node.orelse], known_nodes, depth + 1)
                 if not block_terminates([node.orelse]):
                     nbranches += 1
                     for name, var in members.items():
                         if name not in known_nodes or known_nodes[name][0] != var[0]:
-                            nodes_to_add[name] = (nodes_to_add.get(name, (0, None))[0] + 1, var)
-                self.log.debug('%s+nodes from else: %s', depthstr, nodes_to_add)
+                            nodes_to_add[name] = (
+                                nodes_to_add.get(name, (0, None))[0] + 1,
+                                var,
+                            )
+                self.log.debug("%s+nodes from else: %s", depthstr, nodes_to_add)
 
             for name, (nbranches_adding, var) in nodes_to_add.items():
                 if nbranches_adding == nbranches:
                     self.assert_unknown(name, known_nodes, node.lineno)
                     if not is_container(node):
-                        self.log.debug('%s+%s (from all branches)', depthstr, name)
+                        self.log.debug("%s+%s (from all branches)", depthstr, name)
                         known_nodes[name] = True, var[1]
                 else:
                     if not is_container(node):
                         known_nodes[name] = None, var[1]
-                        self.log.debug('%s+%s (in some branches)', depthstr, name)
+                        self.log.debug("%s+%s (in some branches)", depthstr, name)
 
-            if getattr(node, 'finalbody', []) != []:
+            if getattr(node, "finalbody", []) != []:
                 members = self.walk_tree(node.finalbody, known_nodes, depth + 1)
                 if not block_terminates(node.finalbody):
                     for name, var in members.items():
                         if name not in known_nodes or known_nodes[name][0] != var[0]:
-                            self.log.debug('%s+%s (from final)', depthstr, name)
+                            self.log.debug("%s+%s (from final)", depthstr, name)
                             known_nodes[name] = var
-                self.log.debug('%s+nodes from final: %s', depthstr, members)
+                self.log.debug("%s+nodes from final: %s", depthstr, members)
 
-            self.log.debug('%scurrent knowledge: %s', depthstr, known_nodes.keys() - preknown.keys())
+            self.log.debug(
+                "%scurrent knowledge: %s",
+                depthstr,
+                known_nodes.keys() - preknown.keys(),
+            )
 
         return known_nodes
 
 
-def main(filenames, module_load_policy='none', allow_variable_reuse=False):
+def main(filenames, module_load_policy="none", allow_variable_reuse=False):
     """Verify python files listed in filenames.
 
     :param filenames: files to analyse
@@ -740,7 +910,7 @@ def main(filenames, module_load_policy='none', allow_variable_reuse=False):
         del filename, a
 
     for filename, a in asts:
-        known = {k: (True, 'builtin') for k in preknown}
+        known = {k: (True, "builtin") for k in preknown}
 
         print("%s: checking calls ..." % filename)
         cl = CallLister(filename=filename, known_functions=known_functions)
@@ -748,7 +918,9 @@ def main(filenames, module_load_policy='none', allow_variable_reuse=False):
         total_checked_calls += cl.checked_calls
 
         print("%s: checking variables ..." % filename)
-        nameassigner = NameAssignVerifier(filename, allow_variable_reuse=allow_variable_reuse)
+        nameassigner = NameAssignVerifier(
+            filename, allow_variable_reuse=allow_variable_reuse
+        )
         nameassigner.walk_tree(a.body, known)
         total_checked_known_var += nameassigner.known_checked
         total_checked_unknown_var += nameassigner.unknown_checked
@@ -768,7 +940,9 @@ def main(filenames, module_load_policy='none', allow_variable_reuse=False):
             sys.exit(6)
     print("Summary:")
     print("  - checked %d function calls. " % (total_checked_calls))
-    print("  - checked definition of %d new and access of %d variables." % (
-        total_checked_unknown_var, total_checked_known_var))
+    print(
+        "  - checked definition of %d new and access of %d variables."
+        % (total_checked_unknown_var, total_checked_known_var)
+    )
     print("  - checked %d docstrings." % total_checked_docstrings)
     print("pystrict3: OK")
