@@ -28,9 +28,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 
-import logging
 import ast
+import logging
 import sys
+
 from .funcchecker import FuncLister, count_call_arguments
 
 internal_members = set(dir(object)).union(dir(classmethod)).union(dir(lambda x: x))

@@ -61,7 +61,7 @@ test -e gendocstr-new.py || exit 11
 for i in tests/gendocstr/example?.py
 do
 	coverage run -a ./gendocstr.py $i
-	diff ${i/.py/-new.py} ${i/.py/-expected.py}
+	diff ${i/.py/-new.py} ${i/.py/-expected.py} || exit 1
 done
 
 echo "tests completed successfully."

@@ -12,10 +12,11 @@ Checks that variables are only assigned once.
 
 """
 
-import sys
-import pystrict3lib
 import argparse
 import logging
+import sys
+
+import pystrict3lib
 
 """
 BSD 2-Clause License

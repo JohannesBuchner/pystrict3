@@ -5,14 +5,14 @@ verifying function calls to them, and checking the docstrings.
 """
 
 import ast
-import sys
-import inspect
-import importlib
 import builtins
 import distutils.sysconfig
-import os
-from collections import defaultdict
+import importlib
+import inspect
 import logging
+import os
+import sys
+from collections import defaultdict
 
 """
 BSD 2-Clause License
@@ -132,13 +132,13 @@ def strip_left_indent(s):
     )
 
 
-def list_documented_parameters(docstring):
+def list_documented_parameters(docstring: str) -> (list, list, list):
     """Extract a list of documented parameters from docstring.
 
-    support numpydoc-style, google-style and rst-style formats.
+    Supports numpydoc-style, google-style and rst-style formats.
 
     Parameters
-    -----------
+    ----------
     docstring: str
         documentation string
 
@@ -146,8 +146,14 @@ def list_documented_parameters(docstring):
     -------
     parameters: list
         names of the parameters
+    types: list
+        types of the parameters
+    descriptions: list
+        description of the parameters
     """
     params = []
+    params_types = []
+    params_docs = []
     for section_start, section_end in [
         ("\nParameters\n---------", "\n---"),
         ("\nOther Parameters\n---------", "\n---"),
@@ -169,31 +175,40 @@ def list_documented_parameters(docstring):
                     and ":" in line
                 ):
                     params.append(line.split(":")[0].strip())
+                    params_types.append(line.split(":", maxsplit=1)[1].strip())
+                    params_docs.append("")
+                elif len(params_docs) > 0:
+                    params_docs[-1] = (params_docs[-1].strip() + " " + line).strip()
     for line in docstring.split("\n"):
-        if ":param" in line:
-            params.append(line.split(":param")[1].split(":")[0].strip())
-    return params
+        if ":param " in line:
+            param_name = line.split(":param ")[1].split(":", maxsplit=1)[0].strip()
+            param_type = ''
+            if len(param_name.split()) == 2:
+                param_name, param_type = param_name.split()
+            params.append(param_name)
+            params_types.append(param_type)
+            params_docs.append(line.split(":param ")[1].split(":", maxsplit=1)[1].strip())
+    return params, params_types, params_docs
 
 
-def max_documented_returns(docstring):
+def max_documented_returns(docstring: str) -> int | None:
     """Extract a list of documented return values from docstring.
 
-    for numpydoc-style, get the number.
+    For numpydoc-style, get the number.
     google-style and rst-style formats do not provide this.
 
     Parameters
-    -----------
+    ----------
     docstring: str
         documentation string
 
     Returns
     -------
-    max_returns: int or None
+    max_returns: int | None
         None if unsure, int if the maximum number could be determined.
     """
-    params = []
     if "\n" not in docstring:
-        return params
+        return 0
     docstring_lstripped = strip_left_indent("\n".join(docstring.split("\n")[1:]))
     section_start = "\nReturns\n---------"
     section_end = "\n---"
@@ -564,7 +579,7 @@ class ModuleCallLister(ast.NodeVisitor):
                 '+class: "%s.%s" (%d..%d) arguments'
                 % (module_name, funcname, min_args, max_args)
             )
-        elif hasattr(func, "__call__"):
+        elif callable(func):
             # some type we do not understand, like numpy ufuncs
             min_args, max_args = 0, -1
             self.log.debug('+uninspectable callable: "%s.%s"' % (module_name, funcname))

@@ -53,7 +53,7 @@ class HelpfulParser(argparse.ArgumentParser):
         sys.exit(2)
 
 
-def modify_function(function):
+def modify_function(function, parameter_kb={}):
     """Modify python function.
 
     Injects docstrings to document parameters and return values.
@@ -62,6 +62,8 @@ def modify_function(function):
     -----------
     function: Node
         RedBaron full syntax tree node of a python function.
+    parameter_kb: dict
+        dictionary of known parameters and their type and description as a tuple.
     """
 
     r = function
@@ -76,16 +78,16 @@ def modify_function(function):
         if a.value is not None and a.target.value not in types:
             try:
                 types[a.target.value] = type(a.value.to_python()).__name__
-            except AttributeError:
+            except (AttributeError, ValueError):
                 pass
 
     # load existing docstring, if any
-    indent_str = r.value[0].indentation
     if r.value[0].type == "string":
         docstring = r.value[0].to_python()
         docstring_body = textwrap.dedent("\n".join(docstring.split("\n")[1:]))
-        # indent_strings = [line[:len(line.lstrip())] for line in docstring.split("\n")[1:] if line.strip() != '']
-        params_documented = list_documented_parameters(docstring_body)
+        params_documented, params_types, params_descriptions = list_documented_parameters(docstring_body)
+        for param, param_type, description in zip(params_documented, params_types, params_descriptions):
+            parameter_kb[param] = (param_type, description)
     else:
         docstring = "<summary sentence of function in imperative>.\n\n"
         params_documented = []
@@ -98,10 +100,10 @@ Parameters
 -----------
 """
     for par in params_missing:
-        docstring += "%s: %s\n    <MEANING OF %s>\n" % (
+        docstring += "%s: %s\n    %s\n" % (
             par,
-            types.get(par, "<TYPE>"),
-            par,
+            types.get(par, parameter_kb.get(par, ("<TYPE>",))[0]),
+            parameter_kb.get(par, ('', '<MEANING OF %s>' % par))[1],
         )
         del par
 
@@ -133,7 +135,7 @@ Parameters
     if return_names == [] and len(return_statements) > 0:
         return_names.append("<NAME>")
 
-    if "\Returns\n" not in docstring and len(return_names) > 0:
+    if "\nReturns\n" not in docstring and len(return_names) > 0:
         docstring += """
 Returns
 ----------
@@ -145,7 +147,7 @@ Returns
                 par,
             )
 
-    rb_docstring = textwrap.indent('"""%s"""' % docstring, indent_str).lstrip()
+    rb_docstring = '"""%s"""' % docstring
     if r.value[0].type == "string":
         r.value[0].value = rb_docstring
     else:
@@ -189,8 +191,9 @@ def main():
     rb = redbaron.RedBaron(open(args.filename).read())
     # find all function and method declarations
     results = rb.find_all("def")
+    parameter_knowledge_base = {}
     for r in results:
-        modify_function(r)
+        modify_function(r, parameter_knowledge_base)
 
     if args.in_place:
         outfile = args.filename

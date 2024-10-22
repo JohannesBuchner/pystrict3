@@ -4,20 +4,16 @@ pystrict3: a Python3 code plausibility checker
 """
 
 import ast
-import sys
 import builtins
 import logging
 import operator
 import re
+import sys
+import typing
 
-from .funcchecker import (
-    FuncLister,
-    list_documented_parameters,
-    max_documented_returns,
-    CallLister,
-    ModuleCallLister,
-)
 from .classchecker import ClassPropertiesLister
+from .funcchecker import (CallLister, FuncLister, ModuleCallLister,
+                          list_documented_parameters, max_documented_returns)
 
 """
 BSD 2-Clause License
@@ -57,6 +53,7 @@ preknown = set(builtins.__dict__).union(
 
 def get_arg_ids(node):
     """List variable names mentioned in a node.
+
     Parameters
     -----------
     node: <TYPE>
@@ -78,6 +75,7 @@ def get_arg_ids(node):
 
 def get_assigned_ids(node):
     """List variable names being assigned in a node.
+
     Parameters
     -----------
     node: <TYPE>
@@ -105,6 +103,7 @@ def get_assigned_ids(node):
 
 def get_deleted_ids(node):
     """List variable names being deleted in a node.
+
     Parameters
     -----------
     node: <TYPE>
@@ -124,13 +123,9 @@ def is_container(node):
 
     :param node: AST node
     """
-    return (
-        isinstance(node, ast.FunctionDef)
-        or isinstance(node, ast.AsyncFunctionDef)
-        or isinstance(node, ast.ClassDef)
-        or isinstance(node, ast.Lambda)
-        or isinstance(node, ast.Expr)
-        or isinstance(node, ast.Call)
+    return isinstance(
+        node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef,
+               ast.Lambda, ast.Expr, ast.Call)
     )
 
 
@@ -191,12 +186,10 @@ def block_terminates(statements):
             and isinstance(statement.value, ast.Call)
             and isinstance(statement.value.func, ast.Attribute)
             and isinstance(statement.value.func.value, ast.Name)
+            and statement.value.func.value.id == "sys"
+            and statement.value.func.attr == "exit"
         ):
-            if (
-                statement.value.func.value.id == "sys"
-                and statement.value.func.attr == "exit"
-            ):
-                return True
+            return True
     return False
 
 
@@ -218,9 +211,7 @@ class FuncDocVerifier(ast.NodeVisitor):
         self.class_methods = []
         self.checked_docstrings = 0
 
-    KNOWN_DIRECTIVES = (
-        ":mod: :func: :data: :const: :class: :meth: :attr: :exc: :obj:".split()
-    )
+    KNOWN_DIRECTIVES = [":mod:", ":func:", ":data:", ":const:", ":class:", ":meth:", ":attr:", ":exc:", ":obj:"]
 
     def visit_ClassDef(self, node):
         """Handle class docstrings.
@@ -246,8 +237,8 @@ class FuncDocVerifier(ast.NodeVisitor):
         self.find_directives(docstring, node.name, node.body[0].value.lineno)
         self.generic_visit(node)
 
-    def find_directives(self, docstring, nodename, lineno, outstream=sys.stderr):
-        """find faulty python rst referencing directives.
+    def find_directives(self, docstring: str, nodename: str, lineno: int, outstream=sys.stderr):
+        """Find faulty python rst referencing directives.
 
         * tests for rst links with no _ at the end, or no space between text and URI.
         * tests for unknown `py` directives, and `py` directives that are placed in global domain.
@@ -341,7 +332,7 @@ class FuncDocVerifier(ast.NodeVisitor):
             return
         self.find_directives(func_docstring, node.name, node.body[0].value.lineno)
 
-        documented_parameters = list_documented_parameters("\n" + func_docstring)
+        documented_parameters, _, _ = list_documented_parameters("\n" + func_docstring)
         function_arguments = [arg.arg for arg in arguments.args]
         variable_length = arguments.vararg or arguments.kwarg
         if node in self.class_methods:
@@ -493,12 +484,12 @@ class NameAssignVerifier:
 
         Parameters
         ----------
-        lineno: int
-            Line number
-        known: set
-            variables already defined
         name: str
             variable name
+        known: set
+            variables already defined
+        lineno: int
+            Line number
         override_with_builtins: bool
             whether a variable assignment overriding a builtin name should raise an error
         """
@@ -556,7 +547,7 @@ class NameAssignVerifier:
                 names = el.names
                 for name in names:
                     if getattr(name, "asname", None) is not None:
-                        name = getattr(name, "asname")
+                        name = name.asname
                     elif hasattr(name, "name"):
                         name = name.name
                     self.log.debug(
@@ -583,7 +574,7 @@ class NameAssignVerifier:
                         set(get_assigned_ids(target)),
                     )
                     for name in get_assigned_ids(target):
-                        if isinstance(getattr(target, "ctx"), ast.Del):
+                        if isinstance(target.ctx, ast.Del):
                             self.log.debug(
                                 "check_new_identifiers: del target name %s", name
                             )
@@ -614,11 +605,7 @@ class NameAssignVerifier:
                         add_here[name] = el.lineno
                     del names
                 del item, items
-            if (
-                hasattr(el, "iter")
-                and isinstance(el.iter, ast.DictComp)
-                and isinstance(el.iter, ast.Name)
-            ):
+            if hasattr(el, "iter") and isinstance(el.iter, (ast.DictComp, ast.Name)):
                 name = el.iter.id
                 self.log.debug("check_new_identifiers: iter variable %s", name)
                 self.assert_unknown(name, known, el.lineno)
@@ -637,11 +624,10 @@ class NameAssignVerifier:
                         add_here[name] = el.lineno
                         forget_here.add(name)
                 del target, generators
-            if hasattr(el, "name"):
-                if el.name is not None:
-                    self.log.debug("check_new_identifiers: name %s", el.name)
-                    self.assert_unknown(el.name, known, el.lineno)
-                    add_here[el.name] = el.lineno
+            if hasattr(el, "name") and el.name is not None:
+                self.log.debug("check_new_identifiers: name %s", el.name)
+                self.assert_unknown(el.name, known, el.lineno)
+                add_here[el.name] = el.lineno
             self.log.debug(
                 "forget here: %s, %s, add here: %s %s ----",
                 forget_here,
@@ -657,7 +643,7 @@ class NameAssignVerifier:
                 ):
                     self.log.debug("check_new_identifiers: check delete name %s", name)
                     if name in known or name in add or name in add_here:
-                        pass
+                        pass  # that is fine
                     elif isinstance(node, ast.Try) and any(
                         isinstance(handler.type, ast.Name)
                         and handler.type.id == "NameError"
@@ -700,21 +686,21 @@ class NameAssignVerifier:
         self.log.debug("known: %s", known.keys() - preknown)
 
     def walk_tree(self, nodes, preknown={}, depth=0):
-        """<summary sentence of function in imperative>.
+        """Walk the tree.
 
         Parameters
         -----------
-        nodes: <TYPE>
-            <MEANING OF nodes>
+        nodes: nodes
+            nodes to walk
         preknown: dict
-            <MEANING OF preknown>
+            previously known information
         depth: int
-            <MEANING OF depth>
+            depth for indentation
 
         Returns
         ----------
-        known_nodes: <TYPE>
-            <MEANING OF known_nodes>
+        known_nodes: nodes
+            updated list of known nodes
         """
         known_nodes = dict(**preknown)
         depthstr = " " * depth
@@ -893,7 +879,8 @@ def main(filenames, module_load_policy="none", allow_variable_reuse=False):
 
     asts = []
     for filename in filenames:
-        a = ast.parse(open(filename).read())
+        with open(filename) as fin:
+            a = ast.parse(fin.read())
 
         print("%s: checking class usage ..." % filename)
         ClassPropertiesLister(filename=filename).visit(a)
