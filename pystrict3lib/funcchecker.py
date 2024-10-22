@@ -132,7 +132,7 @@ def strip_left_indent(s):
     )
 
 
-def list_documented_parameters(docstring: str) -> (list, list, list):
+def list_documented_parameters(docstring):
     """Extract a list of documented parameters from docstring.
 
     Supports numpydoc-style, google-style and rst-style formats.
@@ -191,7 +191,7 @@ def list_documented_parameters(docstring: str) -> (list, list, list):
     return params, params_types, params_docs
 
 
-def max_documented_returns(docstring: str) -> int | None:
+def max_documented_returns(docstring):
     """Extract a list of documented return values from docstring.
 
     For numpydoc-style, get the number.
