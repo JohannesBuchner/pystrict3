@@ -93,8 +93,8 @@ def get_assigned_ids(node):
                 yield target.asname
             elif hasattr(target, 'name'):
                 yield target.name
-        else:
-            yield target.name.split(".")[0]
+                # also handle existence of xml in "xml.sax.saxutils"
+                yield target.name.split(".")[0]
     if hasattr(node, "elts"):
         for el in node.elts:
             yield from get_assigned_ids(el)
