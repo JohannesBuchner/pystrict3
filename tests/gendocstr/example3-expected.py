@@ -2,7 +2,7 @@
 class Foo(object):
     def __init__(self, a, b):
         """Initialise.
-
+    
     Parameters
     -----------
     a: int
@@ -16,7 +16,7 @@ class Foo(object):
     
     
     Returns
-    ----------
+    -------
     <NAME>: <TYPE>
         <MEANING OF <NAME>>
     """
@@ -27,7 +27,7 @@ def bar(a: float, b, c=False):
     
     
     Parameters
-    -----------
+    ----------
     a: float
         a friendly number
     b: str
@@ -36,7 +36,7 @@ def bar(a: float, b, c=False):
         <MEANING OF c>
     
     Returns
-    ----------
+    -------
     <NAME>: <TYPE>
         <MEANING OF <NAME>>
     """

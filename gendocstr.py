@@ -68,14 +68,14 @@ def modify_function(function, parameter_kb={}):
 
     r = function
     print("Analying function: %s" % r.name)
-    params = [a.target.value for a in r.arguments]
+    params = [a.target.value for a in r.arguments if hasattr(a, 'target')]
     # get type from annotation
     types = {
         a.target.value: a.annotation for a in r.arguments if a.annotation is not None
     }
     # guess type from assignment
     for a in r.arguments:
-        if a.value is not None and a.target.value not in types:
+        if a.value is not None and hasattr(a, 'target') and a.target.value not in types:
             try:
                 types[a.target.value] = type(a.value.to_python()).__name__
             except (AttributeError, ValueError):
@@ -85,6 +85,7 @@ def modify_function(function, parameter_kb={}):
     if r.value[0].type == "string":
         docstring = r.value[0].to_python()
         docstring_body = textwrap.dedent("\n".join(docstring.split("\n")[1:]))
+        docstring = docstring.split("\n")[0] + "\n" + docstring_body
         params_documented, params_types, params_descriptions = list_documented_parameters(docstring_body)
         for param, param_type, description in zip(params_documented, params_types, params_descriptions):
             parameter_kb[param] = (param_type, description)
@@ -97,7 +98,7 @@ def modify_function(function, parameter_kb={}):
     if "\nParameters\n" not in docstring and len(params_missing) > 0:
         docstring += """
 Parameters
------------
+----------
 """
     for par in params_missing:
         docstring += "%s: %s\n    %s\n" % (
@@ -138,7 +139,7 @@ Parameters
     if "\nReturns\n" not in docstring and len(return_names) > 0:
         docstring += """
 Returns
-----------
+-------
 """
         for par in return_names:
             docstring += "%s: %s\n    <MEANING OF %s>\n" % (
@@ -147,11 +148,10 @@ Returns
                 par,
             )
 
-    rb_docstring = '"""%s"""' % docstring
+    rb_docstring = '"""%s\n"""' % docstring.rstrip()
     if r.value[0].type == "string":
-        r.value[0].value = rb_docstring
-    else:
-        r.value.insert(0, rb_docstring)
+        del r.value[0]
+    r.value.insert(0, rb_docstring)
 
 
 def main():

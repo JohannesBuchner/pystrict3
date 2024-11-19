@@ -6,7 +6,7 @@ def foo(a: float, b: int):
     
     
     Parameters
-    -----------
+    ----------
     a: float
         <MEANING OF a>
     b: int
@@ -20,14 +20,14 @@ def foo2(a: float, b: int):
     
     
     Parameters
-    -----------
+    ----------
     a: float
         <MEANING OF a>
     b: int
         <MEANING OF b>
     
     Returns
-    ----------
+    -------
     a: float
         <MEANING OF a>
     b: int
@@ -45,7 +45,7 @@ def bar(a: int, b=3, c=False):
     
     
     Parameters
-    -----------
+    ----------
     a: int
         <MEANING OF a>
     b: int
@@ -54,7 +54,7 @@ def bar(a: int, b=3, c=False):
         <MEANING OF c>
     
     Returns
-    ----------
+    -------
     <NAME>: <TYPE>
         <MEANING OF <NAME>>
     """
@@ -66,14 +66,14 @@ def baz(a, b):
     
     
     Parameters
-    -----------
+    ----------
     a: <TYPE>
         <MEANING OF a>
     b: <TYPE>
         <MEANING OF b>
     
     Returns
-    ----------
+    -------
     a: <TYPE>
         <MEANING OF a>
     b: <TYPE>
@@ -88,12 +88,12 @@ def indicator(r):
     
     
     Parameters
-    -----------
+    ----------
     r: <TYPE>
         <MEANING OF r>
     
     Returns
-    ----------
+    -------
     indicator: bool
         <MEANING OF indicator>
     """
@@ -109,7 +109,7 @@ class Foo(object):
     
     
     Parameters
-    -----------
+    ----------
     a: int
         <MEANING OF a>
     b: int
@@ -121,7 +121,7 @@ class Foo(object):
     
     
     Returns
-    ----------
+    -------
     <NAME>: <TYPE>
         <MEANING OF <NAME>>
     """

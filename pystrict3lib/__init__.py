@@ -9,7 +9,6 @@ import logging
 import operator
 import re
 import sys
-import typing
 
 from .classchecker import ClassPropertiesLister
 from .funcchecker import (CallLister, FuncLister, ModuleCallLister,
@@ -90,9 +89,9 @@ def get_assigned_ids(node):
             yield from get_assigned_ids(target)
     if hasattr(node, "names"):
         for target in node.names:
-            if target.asname is not None:
+            if getattr(target, 'asname', None) is not None:
                 yield target.asname
-            else:
+            elif hasattr(target, 'name'):
                 yield target.name
         else:
             yield target.name.split(".")[0]

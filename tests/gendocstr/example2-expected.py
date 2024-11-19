@@ -3,14 +3,14 @@ def indicator(r, threshold=42):
     
     
     Parameters
-    -----------
+    ----------
     r: <TYPE>
         <MEANING OF r>
     threshold: int
         <MEANING OF threshold>
     
     Returns
-    ----------
+    -------
     indicator: bool
         <MEANING OF indicator>
     """
