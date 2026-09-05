@@ -74,25 +74,14 @@ coverage: ## check code coverage quickly with the default Python
 	coverage html
 	$(BROWSER) htmlcov/index.html
 
-docs: ## generate Sphinx HTML documentation, including API docs
-	rm -f docs/snowline.rst
-	rm -f docs/modules.rst
-	#nbstripout docs/*.ipynb
-	sphinx-apidoc -H API -o docs/ . setup.py
-	$(MAKE) -C docs clean
-	$(MAKE) -C docs html
-	$(BROWSER) docs/build/html/index.html
-
-servedocs: docs ## compile the docs watching for changes
-	watchmedo shell-command -p '*.rst' -c '$(MAKE) -C docs html' -R -D .
+docs:
 
 release: dist ## package and upload a release
-	twine upload -s dist/*.tar.gz
+	twine upload dist/*.tar.gz
 
 dist: clean ## builds source and wheel package
-	$(PYTHON) setup.py sdist
-	$(PYTHON) setup.py bdist_wheel
+	$(PYTHON) -m build
 	ls -l dist
 
 install: clean ## install the package to the active Python's site-packages
-	$(PYTHON) setup.py install
+	$(PYTHON) -m pip install .
