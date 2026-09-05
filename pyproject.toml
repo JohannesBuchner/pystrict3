@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pystrict3"
+version = "1.0.1"
+description = "Static code analyser for Python3 function calls, string interpolation and variable shadowing"
+readme = "README.rst"
+license = { text = "GPL-3.0" }
+authors = [
+    { name = "Johannes Buchner", email = "johannes.buchner.acad@gmx.com" }
+]
+requires-python = ">=3.7"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.5",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+]
+dependencies = [
+    "redbaron",
+    "setuptools",
+]
+
+[project.urls]
+Homepage = "https://github.com/JohannesBuchner/pystrict3"
+
+[project.scripts]
+pystrict3 = "pystrict3:main"
+gendocstr = "gendocstr:main"
+
+[tool.setuptools.packages.find]
+include = ["pystrict3lib"]
+
+[tool.pytest.ini_options]
+collect_ignore = ["setup.py"]
+
+[tool.flake8]
+style = "numpy"
+check-return-types = false
+exclude = ["docs"]
+extend-ignore = ["E501", "F401", "E128", "E231", "E124", "SIM114", "DOC105", "DOC106", "DOC107", "DOC301", "DOC501", "DOC503", "DOC203", "B006", "SIM102", "SIM113"]
+
+[tool.bumpversion]
+current_version = "0.1.0"
+commit = true
+tag = true
+
+[[tool.bumpversion.files]]
+filename = "setup.py"
+search = "version='{current_version}'"
+replace = "version='{new_version}'"
