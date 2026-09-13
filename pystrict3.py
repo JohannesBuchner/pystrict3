@@ -55,7 +55,7 @@ class HelpfulParser(argparse.ArgumentParser):
         sys.exit(2)
 
 
-if __name__ == "__main__":
+def main():
     parser = HelpfulParser(
         description=__doc__,
         epilog="""Johannes Buchner (C) 2020-2022 <johannes.buchner.acad@gmx.com>""",
@@ -108,3 +108,7 @@ if __name__ == "__main__":
         "all" if args.import_any else "builtins" if args.import_builtin else "none"
     )
     pystrict3lib.main(args.filenames, module_load_policy, args.allow_redefining)
+
+
+if __name__ == "__main__":
+    main()

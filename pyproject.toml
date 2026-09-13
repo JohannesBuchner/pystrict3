@@ -3,7 +3,6 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-license = "MIT"
 name = "pystrict3"
 version = "1.0.1"
 description = "Static code analyser for Python3 function calls, string interpolation and variable shadowing"
@@ -11,16 +10,21 @@ readme = "README.rst"
 authors = [
     { name = "Johannes Buchner", email = "johannes.buchner.acad@gmx.com" }
 ]
+license = "MIT"
 requires-python = ">=3.7"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "Natural Language :: English",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.5",
-    "Programming Language :: Python :: 3.6",
     "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
     "redbaron",
@@ -36,18 +40,23 @@ Documentation = "https://github.com/JohannesBuchner/pystrict3"
 pystrict3 = "pystrict3:main"
 gendocstr = "gendocstr:main"
 
+[tool.setuptools]
+# pystrict3.py is a top-level module (not a package) and must be listed here
+# so it is installed and importable, making the `pystrict3` entry point work.
+py-modules = ["pystrict3", "gendocstr"]
+
 [tool.setuptools.packages.find]
-include = ["pystrict3lib"]
+include = ["pystrict3lib*"]
 
 [tool.pytest.ini_options]
 collect_ignore = ["setup.py"]
 
 [tool.bumpversion]
-current_version = "0.1.0"
+current_version = "1.0.1"
 commit = true
 tag = true
 
 [[tool.bumpversion.files]]
-filename = "setup.py"
-search = "version='{current_version}'"
-replace = "version='{new_version}'"
+filename = "pyproject.toml"
+search = "version = \"{current_version}\""
+replace = "version = \"{new_version}\""
