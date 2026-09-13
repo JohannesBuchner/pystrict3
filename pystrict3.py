@@ -55,7 +55,7 @@ class HelpfulParser(argparse.ArgumentParser):
         sys.exit(2)
 
 
-def main():
+def run():
     parser = HelpfulParser(
         description=__doc__,
         epilog="""Johannes Buchner (C) 2020-2022 <johannes.buchner.acad@gmx.com>""",
@@ -111,4 +111,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    run()
