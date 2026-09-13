@@ -37,7 +37,7 @@ Source = "https://github.com/JohannesBuchner/pystrict3"
 Documentation = "https://github.com/JohannesBuchner/pystrict3"
 
 [project.scripts]
-pystrict3 = "pystrict3:main"
+pystrict3 = "pystrict3:run"
 gendocstr = "gendocstr:main"
 
 [tool.setuptools]
