@@ -48,9 +48,6 @@ py-modules = ["pystrict3", "gendocstr"]
 [tool.setuptools.packages.find]
 include = ["pystrict3lib*"]
 
-[tool.pytest.ini_options]
-collect_ignore = ["setup.py"]
-
 [tool.bumpversion]
 current_version = "1.0.1"
 commit = true
