@@ -3,11 +3,11 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
+license = "MIT"
 name = "pystrict3"
 version = "1.0.1"
 description = "Static code analyser for Python3 function calls, string interpolation and variable shadowing"
 readme = "README.rst"
-license = { text = "GPL-3.0" }
 authors = [
     { name = "Johannes Buchner", email = "johannes.buchner.acad@gmx.com" }
 ]
@@ -29,6 +29,8 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/JohannesBuchner/pystrict3"
+Source = "https://github.com/JohannesBuchner/pystrict3"
+Documentation = "https://github.com/JohannesBuchner/pystrict3"
 
 [project.scripts]
 pystrict3 = "pystrict3:main"
