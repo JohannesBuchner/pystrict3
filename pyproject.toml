@@ -42,12 +42,6 @@ include = ["pystrict3lib"]
 [tool.pytest.ini_options]
 collect_ignore = ["setup.py"]
 
-[tool.flake8]
-style = "numpy"
-check-return-types = false
-exclude = ["docs"]
-extend-ignore = ["E501", "F401", "E128", "E231", "E124", "SIM114", "DOC105", "DOC106", "DOC107", "DOC301", "DOC501", "DOC503", "DOC203", "B006", "SIM102", "SIM113"]
-
 [tool.bumpversion]
 current_version = "0.1.0"
 commit = true
