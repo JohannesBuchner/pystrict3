@@ -58,8 +58,9 @@ clean-doc:
 	rm -rf docs/build
 	#nbstripout docs/*.ipynb
 
-lint: ## check style with flake8
-	flake8 snowline tests
+lint: ## check style with flake8 and pycodestyle
+	flake8 pystrict3.py pystrict3lib/*.py gendocstr.py
+	pycodestyle pystrict3.py pystrict3lib/*.py gendocstr.py
 
 test: ## run tests quickly with the default Python
 	#pytest
